@@ -9,6 +9,7 @@ import {
     Tag,
     Clock,
     ChevronRight,
+    LayoutGrid,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -105,9 +106,16 @@ export default function Investigacoes() {
                     <h1 className="text-3xl font-bold text-[#0B1F3A] tracking-tight">Investigações / Casos</h1>
                     <p className="text-[#6B6B66] mt-1">Gerencie casos de suspeita de movimentação ilícita de criptoativos.</p>
                 </div>
-                <Button onClick={() => setCreateOpen(true)} className="bg-[#0B1F3A] hover:bg-[#1F2E39]">
-                    <Plus className="w-4 h-4 mr-2" /> Nova investigação
-                </Button>
+                <div className="flex gap-2">
+                    <Button asChild variant="outline">
+                        <Link to="/InvestigacoesKanban">
+                            <LayoutGrid className="w-4 h-4 mr-2" /> Kanban
+                        </Link>
+                    </Button>
+                    <Button onClick={() => setCreateOpen(true)} className="bg-[#0B1F3A] hover:bg-[#1F2E39]">
+                        <Plus className="w-4 h-4 mr-2" /> Nova investigação
+                    </Button>
+                </div>
             </div>
 
             {/* Filters */}
@@ -182,36 +190,36 @@ export default function Investigacoes() {
                 {filtered.map((c) => {
                     const color = CASE_STATUS_COLORS[c.status] || CASE_STATUS_COLORS[CASE_STATUSES.ABERTO];
                     return (
-                        <Card key={c.id} className={`border-[#E7E5E2] bg-white border-l-4 ${color.accent} hover:shadow-md transition`}>
-                            <CardContent className="p-5">
-                                <div className="flex items-start justify-between gap-4">
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <span className="font-mono text-xs text-[#6B6B66]">{c.number}</span>
-                                            <Badge className={`${color.bg} ${color.text}`}>{c.status}</Badge>
-                                            {c.priority === 'urgent' && <Badge className="bg-red-100 text-red-700">⚠ Urgente</Badge>}
-                                            {c.priority === 'high' && <Badge className="bg-orange-100 text-orange-700">Alta</Badge>}
-                                            {c.visibility === 'classified' && <Badge className="bg-slate-100 text-slate-700">🔒 Restrito</Badge>}
+                        <Link key={c.id} to={`/InvestigacaoDetalhe/${c.id}`} className="block">
+                            <Card className={`border-[#E7E5E2] bg-white border-l-4 ${color.accent} hover:shadow-md transition cursor-pointer`}>
+                                <CardContent className="p-5">
+                                    <div className="flex items-start justify-between gap-4">
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <span className="font-mono text-xs text-[#6B6B66]">{c.number}</span>
+                                                <Badge className={`${color.bg} ${color.text}`}>{c.status}</Badge>
+                                                {c.priority === 'urgent' && <Badge className="bg-red-100 text-red-700">⚠ Urgente</Badge>}
+                                                {c.priority === 'high' && <Badge className="bg-orange-100 text-orange-700">Alta</Badge>}
+                                                {c.visibility === 'classified' && <Badge className="bg-slate-100 text-slate-700">🔒 Restrito</Badge>}
+                                            </div>
+                                            <h3 className="font-bold text-[#0B1F3A] mb-1.5">{c.title}</h3>
+                                            <p className="text-sm text-[#6B6B66] mb-3 line-clamp-2">{c.description}</p>
+                                            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-[#6B6B66]">
+                                                <span className="flex items-center gap-1"><Tag className="w-3 h-3" /> {c.type}</span>
+                                                <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {c.jurisdiction}</span>
+                                                <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {new Date(c.opened_at).toLocaleDateString('pt-BR')}</span>
+                                                <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {c.evidence_count} evidências</span>
+                                                {c.tx_ids.length > 0 && <span className="flex items-center gap-1 text-emerald-600">{c.tx_ids.length} transações vinculadas</span>}
+                                                {c.wallet_ids.length > 0 && <span className="flex items-center gap-1 text-blue-600">{c.wallet_ids.length} wallets vinculadas</span>}
+                                            </div>
                                         </div>
-                                        <h3 className="font-bold text-[#0B1F3A] mb-1.5">{c.title}</h3>
-                                        <p className="text-sm text-[#6B6B66] mb-3 line-clamp-2">{c.description}</p>
-                                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-[#6B6B66]">
-                                            <span className="flex items-center gap-1"><Tag className="w-3 h-3" /> {c.type}</span>
-                                            <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {c.jurisdiction}</span>
-                                            <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {new Date(c.opened_at).toLocaleDateString('pt-BR')}</span>
-                                            <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {c.evidence_count} evidências</span>
-                                            {c.tx_ids.length > 0 && <span className="flex items-center gap-1 text-emerald-600">{c.tx_ids.length} transações vinculadas</span>}
-                                            {c.wallet_ids.length > 0 && <span className="flex items-center gap-1 text-blue-600">{c.wallet_ids.length} wallets vinculadas</span>}
-                                        </div>
-                                    </div>
-                                    <Button variant="ghost" size="sm" asChild>
-                                        <Link to={`/Investigacoes?case=${c.id}`}>
+                                        <Button variant="ghost" size="sm">
                                             Detalhes <ChevronRight className="w-4 h-4 ml-1" />
-                                        </Link>
-                                    </Button>
-                                </div>
-                            </CardContent>
-                        </Card>
+                                        </Button>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </Link>
                     );
                 })}
             </div>

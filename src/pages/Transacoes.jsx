@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { miraService } from '@/services/miraService';
 import { CHAIN_LIST } from '@/constants/mira';
 import { toast } from 'sonner';
@@ -31,6 +32,7 @@ export default function Transacoes() {
     const [chainFilter, setChainFilter] = useState('all');
     const [flaggedOnly, setFlaggedOnly] = useState(false);
     const [page, setPage] = useState(1);
+    const [selectedTx, setSelectedTx] = useState(null);
     const PAGE_SIZE = 50;
 
     useEffect(() => {
@@ -166,7 +168,11 @@ export default function Transacoes() {
                         </thead>
                         <tbody>
                             {pageData.map((tx) => (
-                                <tr key={tx.id} className={`border-b border-[#E7E5E2] hover:bg-[#FAFAF9] ${tx.flagged ? 'bg-red-50/30' : ''}`}>
+                                <tr
+                                    key={tx.id}
+                                    className={`border-b border-[#E7E5E2] hover:bg-[#FAFAF9] cursor-pointer ${tx.flagged ? 'bg-red-50/30' : ''}`}
+                                    onClick={() => setSelectedTx(tx)}
+                                >
                                     <td className="p-3">
                                         <div className="flex items-center gap-2">
                                             <span className="font-mono text-xs">{tx.hash.slice(0, 10)}...{tx.hash.slice(-6)}</span>
@@ -227,6 +233,78 @@ export default function Transacoes() {
                     </Button>
                 </div>
             )}
+
+            {/* Detalhe dialog */}
+            <Dialog open={!!selectedTx} onOpenChange={(o) => !o && setSelectedTx(null)}>
+                <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle>Detalhes da transação</DialogTitle>
+                    </DialogHeader>
+                    {selectedTx && (
+                        <div className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <div className="text-xs text-[#6B6B66] uppercase mb-1">Hash</div>
+                                    <div className="font-mono text-xs text-[#0B1F3A] break-all bg-[#FAFAF9] p-2 rounded">{selectedTx.hash}</div>
+                                </div>
+                                <div>
+                                    <div className="text-xs text-[#6B6B66] uppercase mb-1">Chain</div>
+                                    <Badge variant="outline" className="font-mono">{selectedTx.chain}</Badge>
+                                </div>
+                                <div>
+                                    <div className="text-xs text-[#6B6B66] uppercase mb-1">De</div>
+                                    <div className="font-mono text-xs text-[#0B1F3A] break-all">{selectedTx.from_address}</div>
+                                </div>
+                                <div>
+                                    <div className="text-xs text-[#6B6B66] uppercase mb-1">Para</div>
+                                    <div className="font-mono text-xs text-[#0B1F3A] break-all">{selectedTx.to_address}</div>
+                                </div>
+                                <div>
+                                    <div className="text-xs text-[#6B6B66] uppercase mb-1">Bloco</div>
+                                    <div className="font-mono text-sm">#{selectedTx.block_height.toLocaleString('pt-BR')}</div>
+                                </div>
+                                <div>
+                                    <div className="text-xs text-[#6B6B66] uppercase mb-1">Timestamp</div>
+                                    <div className="text-sm">{new Date(selectedTx.timestamp).toLocaleString('pt-BR')}</div>
+                                </div>
+                                <div>
+                                    <div className="text-xs text-[#6B6B66] uppercase mb-1">Status</div>
+                                    <Badge className={selectedTx.status === 'confirmed' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}>
+                                        {selectedTx.status} ({selectedTx.confirmations} confirmações)
+                                    </Badge>
+                                </div>
+                                <div>
+                                    <div className="text-xs text-[#6B6B66] uppercase mb-1">Risk score</div>
+                                    <Badge className={
+                                        selectedTx.risk_score >= 80 ? 'bg-red-100 text-red-700' :
+                                            selectedTx.risk_score >= 60 ? 'bg-orange-100 text-orange-700' :
+                                                selectedTx.risk_score >= 40 ? 'bg-amber-100 text-amber-700' :
+                                                    'bg-emerald-100 text-emerald-700'
+                                    }>
+                                        {selectedTx.risk_score}
+                                    </Badge>
+                                </div>
+                            </div>
+                            {selectedTx.cluster_path && (
+                                <div>
+                                    <div className="text-xs text-[#6B6B66] uppercase mb-1">Cluster</div>
+                                    <div className="font-mono text-xs">{selectedTx.cluster_path}</div>
+                                </div>
+                            )}
+                            <div className="flex justify-end gap-2 pt-2 border-t border-[#E7E5E2]">
+                                <Button variant="outline" size="sm" asChild>
+                                    <a href={getExplorerUrl(selectedTx.chain, selectedTx.hash)} target="_blank" rel="noopener noreferrer">
+                                        <ExternalLink className="w-4 h-4 mr-2" /> Ver no explorer
+                                    </a>
+                                </Button>
+                                <Button variant="outline" size="sm">
+                                    <GitBranch className="w-4 h-4 mr-2" /> Rastrear
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

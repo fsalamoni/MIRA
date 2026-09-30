@@ -50,6 +50,8 @@ const SECONDARY_ITEMS = [
 
 const ADMIN_ITEM = { name: 'Admin', icon: ShieldCheck, path: '/Admin' };
 
+const DETAIL_ROUTES = ['/InvestigacaoDetalhe', '/WalletDetalhe'];
+
 export default function Layout({ children, currentPageName }) {
     const { user, signOut, isAuthenticated, isLoadingAuth } = useAuth();
     const navigate = useNavigate();
@@ -72,6 +74,8 @@ export default function Layout({ children, currentPageName }) {
             navigate('/Login');
         }
     }, [isAuthenticated, isLoadingAuth, currentPageName, navigate]);
+
+    const isDetail = DETAIL_ROUTES.some((r) => location.pathname.startsWith(r));
 
     const isPublic = PUBLIC_PAGES.includes(currentPageName);
 
@@ -253,6 +257,11 @@ export default function Layout({ children, currentPageName }) {
                     </div>
                 </header>
                 <div className="min-h-[calc(100vh-4rem)] lg:min-h-screen">
+                    {isDetail && (
+                        <div className="bg-blue-50 border-b border-blue-200 px-4 py-1.5 text-xs text-blue-900">
+                            <span className="font-medium">Modo detalhe:</span> você está visualizando um registro específico. Use a sidebar para navegar entre módulos.
+                        </div>
+                    )}
                     {children}
                 </div>
             </main>

@@ -1,7 +1,6 @@
 /**
  * pages.config.js — MIRA Page routing configuration
  *
- * Pages are auto-registered when you create files in the ./pages/ folder.
  * Edit only mainPage to change the landing route.
  */
 import Landing from './pages/Landing';
@@ -13,7 +12,10 @@ import Admin from './pages/Admin';
 import Login from './pages/Login';
 import Workspace from './pages/Workspace';
 import Investigacoes from './pages/Investigacoes';
+import InvestigacoesKanban from './pages/InvestigacoesKanban';
+import InvestigacaoDetalhe from './pages/InvestigacaoDetalhe';
 import Wallets from './pages/Wallets';
+import WalletDetalhe from './pages/WalletDetalhe';
 import Transacoes from './pages/Transacoes';
 import Alertas from './pages/Alertas';
 import Rastreamento from './pages/Rastreamento';
@@ -35,7 +37,10 @@ export const PAGES = {
     "Login": Login,
     "Workspace": Workspace,
     "Investigacoes": Investigacoes,
+    "InvestigacoesKanban": InvestigacoesKanban,
+    "InvestigacaoDetalhe": InvestigacaoDetalhe,
     "Wallets": Wallets,
+    "WalletDetalhe": WalletDetalhe,
     "Transacoes": Transacoes,
     "Alertas": Alertas,
     "Rastreamento": Rastreamento,

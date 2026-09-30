@@ -221,13 +221,20 @@ export default function Wallets() {
                             {filtered.slice(0, 50).map((w) => {
                                 const r = getRiskColor(w.risk_score);
                                 return (
-                                    <tr key={w.id} className="border-b border-[#E7E5E2] hover:bg-[#FAFAF9]">
+                                    <tr
+                                        key={w.id}
+                                        className="border-b border-[#E7E5E2] hover:bg-[#FAFAF9] cursor-pointer"
+                                        onClick={() => window.location.href = `/WalletDetalhe/${w.id}`}
+                                    >
                                         <td className="p-3">
                                             <div className="flex items-center gap-2">
                                                 <span className="font-mono text-xs text-[#0B1F3A]">
                                                     {w.address.slice(0, 10)}...{w.address.slice(-6)}
                                                 </span>
-                                                <button onClick={() => handleCopy(w.address)} className="text-[#6B6B66] hover:text-[#0B1F3A]">
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); handleCopy(w.address); }}
+                                                    className="text-[#6B6B66] hover:text-[#0B1F3A]"
+                                                >
                                                     <Copy className="w-3 h-3" />
                                                 </button>
                                             </div>
@@ -268,7 +275,11 @@ export default function Wallets() {
                                             )}
                                         </td>
                                         <td className="p-3 text-center">
-                                            <Button variant="ghost" size="sm" onClick={() => toggleMonitor(w.id, w.monitored)}>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={(e) => { e.stopPropagation(); toggleMonitor(w.id, w.monitored); }}
+                                            >
                                                 {w.monitored ? 'Pausar' : 'Monitorar'}
                                             </Button>
                                         </td>
