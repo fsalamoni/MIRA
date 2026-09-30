@@ -24,6 +24,7 @@ import OSINT from './pages/OSINT';
 import Relatorios from './pages/Relatorios';
 import Expedientes from './pages/Expedientes';
 import Parcerias from './pages/Parcerias';
+import Documentacao from './pages/Documentacao';
 import __Layout from './Layout.jsx';
 
 
@@ -49,6 +50,7 @@ export const PAGES = {
     "Relatorios": Relatorios,
     "Expedientes": Expedientes,
     "Parcerias": Parcerias,
+    "Documentacao": Documentacao,
 };
 
 export const pagesConfig = {

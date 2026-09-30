@@ -23,6 +23,7 @@ import {
     ShieldCheck,
     ChevronLeft,
     ChevronRight,
+    BookOpen,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -40,6 +41,7 @@ const NAV_ITEMS = [
     { name: 'Relatórios', icon: Shield, path: '/Relatorios', category: 'fiscalizacao' },
     { name: 'Expedientes', icon: FileText, path: '/Expedientes', category: 'operacional' },
     { name: 'Parcerias', icon: Handshake, path: '/Parcerias', category: 'operacional' },
+    { name: 'Documentação', icon: BookOpen, path: '/Documentacao', category: 'operacional' },
 ];
 
 const SECONDARY_ITEMS = [
