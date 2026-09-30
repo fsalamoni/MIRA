@@ -1,0 +1,535 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ========== HELPER FUNCTIONS ==========
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+    
+    function isMemberOf(orgId) {
+      return exists(/databases/$(database)/documents/userOrganizations/$(request.auth.uid + '_' + orgId));
+    }
+    
+    function getMembership(orgId) {
+      return get(/databases/$(database)/documents/userOrganizations/$(request.auth.uid + '_' + orgId)).data;
+    }
+    
+    function hasRole(orgId, allowedRoles) {
+      let membership = getMembership(orgId);
+      return membership.role in allowedRoles;
+    }
+    
+    // Super-admin de plataforma (custom claim emitido por Cloud Function)
+    function isPlatformAdmin() {
+      return isAuthenticated() && request.auth.token.platformAdmin == true;
+    }
+    
+    // ========== USERS ==========
+    
+    match /users/{userId} {
+      // Todos usuários autenticados podem ler perfis (para exibir nomes, fotos)
+      allow read: if isAuthenticated();
+
+      // Apenas o próprio usuário pode escrever seu perfil
+      allow write: if isAuthenticated() && isOwner(userId);
+    }
+
+    // ========== PREFERÊNCIAS DE USUÁRIO ==========
+    // Corrige lacuna anterior: esta coleção nunca teve regra própria, então
+    // toda leitura/escrita caía no default-deny do Firestore. Na prática,
+    // preferências (ordenação, colunas, densidade, visões salvas etc.) só
+    // persistiam via localStorage — nunca sincronizavam entre dispositivos.
+    match /userPreferences/{userId} {
+      allow read, write: if isAuthenticated() && isOwner(userId);
+    }
+    
+    // ========== ORGANIZATIONS ==========
+    
+    match /organizations/{orgId} {
+      // Apenas membros da organização podem ler
+      allow read: if isAuthenticated() && isMemberOf(orgId);
+
+      // Escrita exclusiva de Cloud Functions (createOrganization/updateOrganization/
+      // deleteOrganization). Motivo: o cliente já não escreve mais aqui
+      // diretamente (todo o fluxo de criação/edição/exclusão foi migrado para
+      // Cloud Functions há tempos — as funções antigas em firestoreService.js
+      // que faziam isso são código morto, sem nenhum ponto de chamada). Um
+      // "allow update" direto permitiria a qualquer admin/creator sobrescrever
+      // campos reservados ao criador (retentionConfig, webhookConfig etc. —
+      // validados só dentro de updateOrganization) e um "allow delete" direto
+      // apagaria o órgão sem a confirmação de nome e sem limpar as coleções
+      // dependentes (só feito dentro de deleteOrganization).
+      allow create, update, delete: if false;
+    }
+
+    // ========== USER ORGANIZATIONS (Memberships) ==========
+
+    match /userOrganizations/{membershipId} {
+      // Leitura restrita ao próprio vínculo ou a vínculos de um órgão do qual
+      // o solicitante já é membro — antes qualquer usuário autenticado podia
+      // listar a coleção inteira e colher organization_id/user_email/role de
+      // TODOS os órgãos da plataforma (vazamento de dados entre órgãos).
+      allow read: if isAuthenticated() && (
+        isOwner(resource.data.user_id) || isMemberOf(resource.data.organization_id)
+      );
+
+      // Escrita exclusiva de Cloud Functions (createOrganization/joinOrganization/
+      // updateMember/removeMember). Antes, "allow create: if isAuthenticated()"
+      // sem nenhuma validação de campos permitia a QUALQUER usuário autenticado
+      // criar seu próprio vínculo com role:'creator' em qualquer organization_id
+      // que conhecesse — acesso total a um órgão alheio sem convite nenhum. E o
+      // "allow update" pelo próprio dono deixava o usuário reescrever seu
+      // próprio role/permissions livremente. As funções client-side
+      // equivalentes em firestoreService.js (createMembership,
+      // updateMembershipRole, joinOrganizationByInvite) são código morto, sem
+      // nenhum ponto de chamada no app.
+      allow create, update, delete: if false;
+    }
+    
+    // ========== PROCESSES ==========
+    
+    match /processes/{processId} {
+      // Membros da organização podem ler processos
+      allow read: if isAuthenticated() && isMemberOf(resource.data.organization_id);
+      
+      // Membros podem criar processos
+      allow create: if isAuthenticated() && 
+                      isMemberOf(request.resource.data.organization_id);
+      
+      // Pode atualizar se for:
+      // 1. Admin/creator da organização, OU
+      // 2. Responsável pelo processo
+      // Em ambos os casos, organization_id não pode mudar na própria escrita —
+      // sem isto, quem tem permissão de editar poderia "mover" o processo para
+      // outro órgão (inclusive um controlado por ele) trocando só esse campo.
+      allow update: if isAuthenticated() &&
+                      isMemberOf(resource.data.organization_id) && (
+                        hasRole(resource.data.organization_id, ['creator', 'admin']) ||
+                        isOwner(resource.data.responsible_user_id)
+                      ) &&
+                      request.resource.data.organization_id == resource.data.organization_id;
+      
+      // Apenas admin/creator podem deletar
+      allow delete: if isAuthenticated() && 
+                      isMemberOf(resource.data.organization_id) &&
+                      hasRole(resource.data.organization_id, ['creator', 'admin']);
+
+      // Subcoleção de histórico (Fase 3). Leitura para membros do órgão do
+      // processo pai; escrita exclusiva de Cloud Functions (Admin SDK).
+      match /history/{entryId} {
+        allow read: if isAuthenticated() &&
+          isMemberOf(get(/databases/$(database)/documents/processes/$(processId)).data.organization_id);
+        allow write: if false;
+      }
+
+      // Comentários internos com @menção (flag `process_comments`). Leitura
+      // para membros do órgão do processo pai; escrita exclusiva da Cloud
+      // Function addComment (valida associação e notifica os mencionados).
+      match /comments/{commentId} {
+        allow read: if isAuthenticated() &&
+          isMemberOf(get(/databases/$(database)/documents/processes/$(processId)).data.organization_id);
+        allow write: if false;
+      }
+    }
+
+    // ========== EXPEDIENTES ADMINISTRATIVOS ==========
+    
+    match /expedientes/{expedienteId} {
+      // Membros da organização podem ler expedientes
+      allow read: if isAuthenticated() && isMemberOf(resource.data.organization_id);
+      
+      // Membros podem criar expedientes
+      allow create: if isAuthenticated() && 
+                      isMemberOf(request.resource.data.organization_id);
+      
+      // Pode atualizar se for:
+      // 1. Admin/creator da organização, OU
+      // 2. Responsável pelo expediente
+      // organization_id não pode mudar na própria escrita (mesma razão da
+      // regra equivalente em processes/{id}).
+      allow update: if isAuthenticated() &&
+                      isMemberOf(resource.data.organization_id) && (
+                        hasRole(resource.data.organization_id, ['creator', 'admin']) ||
+                        isOwner(resource.data.responsible_user_id)
+                      ) &&
+                      request.resource.data.organization_id == resource.data.organization_id;
+      
+      // Apenas admin/creator podem deletar
+      allow delete: if isAuthenticated() && 
+                      isMemberOf(resource.data.organization_id) &&
+                      hasRole(resource.data.organization_id, ['creator', 'admin']);
+
+      // Subcoleção de histórico (Fase 3). Leitura para membros do órgão do
+      // expediente pai; escrita exclusiva de Cloud Functions (Admin SDK).
+      match /history/{entryId} {
+        allow read: if isAuthenticated() &&
+          isMemberOf(get(/databases/$(database)/documents/expedientes/$(expedienteId)).data.organization_id);
+        allow write: if false;
+      }
+
+      // Comentários internos com @menção (flag `process_comments`). Mesma
+      // lógica da subcoleção equivalente em processes/{id}/comments.
+      match /comments/{commentId} {
+        allow read: if isAuthenticated() &&
+          isMemberOf(get(/databases/$(database)/documents/expedientes/$(expedienteId)).data.organization_id);
+        allow write: if false;
+      }
+    }
+
+    // ========== PARCERIAS (Convênio, Termo de Cooperação, Termo de Fomento) ==========
+    // Coleção de primeiro nível `parcerias/{parceriaId}`. Toda escrita passa
+    // por Cloud Functions (createParceria/updateParceria/deleteParceria/
+    // addAditivo/updateAditivo/deleteAditivo/extinguishParceria). Cada Parceria
+    // pode ter uma subcoleção de aditivos (parcerias/{id}/aditivos/{addId}) e
+    // espelha o activity_log na subcoleção `history/`.
+    match /parcerias/{parceriaId} {
+      // Membros da organização podem ler parcerias.
+      allow read: if isAuthenticated() && isMemberOf(resource.data.organization_id);
+
+      // Membros podem criar parcerias (Cloud Function valida campos).
+      allow create: if isAuthenticated() &&
+                      isMemberOf(request.resource.data.organization_id);
+
+      // Pode atualizar se for:
+      // 1. Admin/creator da organização, OU
+      // 2. Assessor responsável pela parceria.
+      // organization_id não pode mudar na própria escrita.
+      // OBS: a trava fina sobre campos "congelados" quando aditivo_count > 0
+      // (não permitir editar o original depois do primeiro aditivo) é
+      // IMPLEMENTADA NO SERVIDOR (functions-v2/src/parcerias/update.ts).
+      // Regras do Firestore não conseguem inspecionar sub-campos arbitrários
+      // sem custo extra; vale manter a defesa em camadas.
+      allow update: if isAuthenticated() &&
+                      isMemberOf(resource.data.organization_id) && (
+                        hasRole(resource.data.organization_id, ['creator', 'admin']) ||
+                        isOwner(resource.data.responsible_user_id)
+                      ) &&
+                      request.resource.data.organization_id == resource.data.organization_id;
+
+      // Apenas admin/creator podem deletar.
+      allow delete: if isAuthenticated() &&
+                      isMemberOf(resource.data.organization_id) &&
+                      hasRole(resource.data.organization_id, ['creator', 'admin']);
+
+      // Subcoleção de histórico (Fase 3) — espelho do activity_log.
+      match /history/{entryId} {
+        allow read: if isAuthenticated() &&
+          isMemberOf(get(/databases/$(database)/documents/parcerias/$(parceriaId)).data.organization_id);
+        allow write: if false;
+      }
+
+      // Subcoleção de aditivos (parcerias/{id}/aditivos/{aditivoId}). Cada
+      // aditivo é um documento independente com histórico próprio. Leitura
+      // para membros do órgão da Parceria pai; escrita exclusiva de Cloud
+      // Functions (addAditivo/updateAditivo/deleteAditivo), com validação de
+      // status da Parceria e do aditivo.
+      match /aditivos/{aditivoId} {
+        allow read: if isAuthenticated() &&
+          isMemberOf(get(/databases/$(database)/documents/parcerias/$(parceriaId)).data.organization_id);
+        allow write: if false;
+
+        // Histórico do aditivo (mesma estratégia).
+        match /history/{entryId} {
+          allow read: if isAuthenticated() &&
+            isMemberOf(
+              get(/databases/$(database)/documents/parcerias/$(parceriaId)).data.organization_id
+            );
+          allow write: if false;
+        }
+      }
+
+      // Comentários internos com @menção (mesmo padrão de processos/expedientes).
+      match /comments/{commentId} {
+        allow read: if isAuthenticated() &&
+          isMemberOf(get(/databases/$(database)/documents/parcerias/$(parceriaId)).data.organization_id);
+        allow write: if false;
+      }
+    }
+
+    // ========== JURIMETRIA (base de júris — flag: jurimetria_enabled) ==========
+    // Coleção de primeiro nível `juris/{juriId}`. Diferente de processes/
+    // expedientes/parcerias, aqui NENHUMA escrita do cliente é permitida: todo
+    // o CRUD passa por Cloud Functions (createJuri/updateJuri/deleteJuris/
+    // bulkUpdateJuris/importJurisFromExcel), que são as únicas que aplicam a
+    // normalização das listas oficiais, a checagem de duplicidade pelo número
+    // do processo e a permissão `delete_records`. Escrita direta permitiria
+    // gravar um júri fora das listas do órgão ou duplicar a chave natural.
+    match /juris/{juriId} {
+      allow read: if isAuthenticated() && isMemberOf(resource.data.organization_id);
+      allow write: if false;
+
+      // Histórico do júri (espelho do activity_log). Leitura para membros do
+      // órgão do júri pai; escrita exclusiva de Cloud Functions (Admin SDK).
+      match /history/{entryId} {
+        allow read: if isAuthenticated() &&
+          isMemberOf(get(/databases/$(database)/documents/juris/$(juriId)).data.organization_id);
+        allow write: if false;
+      }
+    }
+
+    // Modelos de relatório dinâmico da Jurimetria, compartilhados no órgão.
+    // Leitura para qualquer membro (o modelo de um serve a todos); escrita
+    // exclusiva de Cloud Function, que é onde a autoria é verificada — só quem
+    // criou o modelo, ou quem tem `configure_jurimetria`, pode alterá-lo ou
+    // excluí-lo. Escrita direta permitiria sobrescrever o modelo de outro.
+    match /jurimetriaTemplates/{templateId} {
+      allow read: if isAuthenticated() && isMemberOf(resource.data.organization_id);
+      allow write: if false;
+    }
+
+    // ========== PANORAMA (flag: panorama_enabled) ==========
+    // Bases analíticas do órgão. A DEFINIÇÃO da base (colunas, papéis, pesos,
+    // regiões, prescrição) decide o significado de todos os números do módulo,
+    // então a escrita é exclusiva de Cloud Function — que é onde a permissão
+    // `configure_panorama` é verificada. Escrita direta permitiria a um membro
+    // comum trocar o papel de uma coluna e mudar todo relatório do órgão.
+    match /panoramaBases/{baseId} {
+      allow read: if isAuthenticated() && isMemberOf(resource.data.organization_id);
+      allow write: if false;
+    }
+
+    // Registros das bases. Mesma postura de `juris/`: nenhuma escrita do
+    // cliente. Só a função aplica a normalização por tipo de coluna, a chave
+    // natural e a checagem de duplicidade — escrita direta permitiria gravar
+    // um valor que nenhum relatório saberia interpretar, ou duplicar a chave.
+    match /panoramaRegistros/{registroId} {
+      allow read: if isAuthenticated() && isMemberOf(resource.data.organization_id);
+      allow write: if false;
+    }
+
+    // Modelos de relatório do Panorama, compartilhados no órgão: todos os
+    // membros leem; a autoria de quem pode editar/excluir é verificada na
+    // função, como nos modelos da Jurimetria.
+    match /panoramaTemplates/{templateId} {
+      allow read: if isAuthenticated() && isMemberOf(resource.data.organization_id);
+      allow write: if false;
+    }
+
+    // ========== PÁGINAS/PROCESSOS PERSONALIZADOS (flag: custom_entities) ==========
+    // Definições dos tipos de entidade. Leitura para membros do órgão; toda
+    // escrita passa por Cloud Functions (validação/sanitização no servidor).
+    match /entityTypes/{typeId} {
+      allow read: if isAuthenticated() && isMemberOf(resource.data.organization_id);
+      allow write: if false;
+    }
+
+    // Registros das páginas personalizadas. Leitura para membros do órgão;
+    // criação/edição/exclusão exclusivamente via Cloud Functions.
+    match /customRecords/{recordId} {
+      allow read: if isAuthenticated() && isMemberOf(resource.data.organization_id);
+      allow write: if false;
+
+      // Histórico espelhado (igual a processes/expedientes).
+      match /history/{entryId} {
+        allow read: if isAuthenticated() &&
+          isMemberOf(get(/databases/$(database)/documents/customRecords/$(recordId)).data.organization_id);
+        allow write: if false;
+      }
+    }
+    
+    // ========== AUDIT LOGS ==========
+    
+    match /auditLogs/{logId} {
+      // Membros podem ler logs da organização
+      allow read: if isAuthenticated() && isMemberOf(resource.data.organization_id);
+      
+      // NINGUÉM pode escrever diretamente - apenas Cloud Functions
+      allow write: if false;
+    }
+    
+    // ========== CÓDIGOS DE VERIFICAÇÃO (flag `two_factor_auth`) ==========
+    // otpCodes/{uid}: código de 2FA por e-mail, com hash (nunca texto puro) e
+    // expiração curta. Acesso EXCLUSIVO das Cloud Functions sendLoginOtp/
+    // verifyLoginOtp (Admin SDK) — nenhuma leitura ou escrita do cliente.
+    match /otpCodes/{uid} {
+      allow read, write: if false;
+    }
+
+    // ========== PRESENÇA EM TEMPO REAL (flag `live_presence`) ==========
+    // Heartbeats efêmeros (id determinístico `${entityType}_${entityId}_${uid}`).
+    // Escrita direta do cliente (sem Cloud Function): cada usuário só grava/apaga
+    // o PRÓPRIO heartbeat, e só dentro de um órgão do qual é membro. Leitura
+    // liberada para membros do órgão para exibir "quem está vendo" o registro.
+
+    match /presence/{presenceId} {
+      allow read: if isAuthenticated() && isMemberOf(resource.data.organization_id);
+
+      allow create: if isAuthenticated() &&
+                      isOwner(request.resource.data.user_id) &&
+                      isMemberOf(request.resource.data.organization_id);
+
+      // update também exige ser dono do doc JÁ EXISTENTE (não só da nova
+      // versão) — evita que alguém reescreva o heartbeat de outro usuário.
+      allow update: if isAuthenticated() &&
+                      isOwner(resource.data.user_id) &&
+                      isOwner(request.resource.data.user_id) &&
+                      isMemberOf(request.resource.data.organization_id);
+
+      allow delete: if isAuthenticated() && isOwner(resource.data.user_id);
+    }
+
+    // ========== NOTIFICATIONS ==========
+    
+    match /notifications/{notifId} {
+      // Apenas o destinatário pode ler suas notificações
+      allow read: if isAuthenticated() && isOwner(resource.data.user_id);
+      
+      // Pode atualizar apenas para marcar como lida
+      allow update: if isAuthenticated() && 
+                      isOwner(resource.data.user_id) &&
+                      request.resource.data.diff(resource.data).affectedKeys()
+                        .hasOnly(['read', 'read_at']);
+      
+      // Não pode criar/deletar - apenas Cloud Functions
+      allow create, delete: if false;
+    }
+
+    // ========== PLATAFORMA: CONFIG / FEATURE FLAGS ==========
+
+    match /platformConfig/{docId} {
+      // Qualquer usuário autenticado pode LER as flags (controlam o comportamento
+      // do app para todos). São apenas valores booleanos, não sensíveis.
+      allow read: if isAuthenticated();
+
+      // Escrita exclusiva de Cloud Functions (setFeatureFlag valida super-admin).
+      allow write: if false;
+    }
+
+    // ========== PLATAFORMA: ALLOWLIST DE SUPER-ADMINS ==========
+
+    match /platformAdmins/{uid} {
+      // O próprio usuário pode ler seu registro (para o app saber se é admin),
+      // e super-admins podem ler todos.
+      allow read: if isAuthenticated() && (isOwner(uid) || isPlatformAdmin());
+
+      // Escrita exclusiva de Cloud Functions (grant/revoke validam super-admin).
+      allow write: if false;
+    }
+
+    // ========== PLATAFORMA: ESTATÍSTICAS AGREGADAS ==========
+
+    match /platformStats/{docId} {
+      // Apenas super-admin lê estatísticas globais.
+      allow read: if isPlatformAdmin();
+
+      // Escrita exclusiva de Cloud Functions (cron/agregadores).
+      allow write: if false;
+    }
+
+    // ============================================================
+    // MIRA — MÓDULOS ESPECÍFICOS DE FISCALIZAÇÃO DE CRIPTOMOEDAS
+    // ============================================================
+    //
+    // Modelo: cada tenant (organização) tem seus próprios dados isolados
+    // sob /tenants/{orgId}/... As coleções a seguir refletem os módulos:
+    //
+    //   - cases        → investigações
+    //   - wallets      → endereços monitorados
+    //   - transactions → base indexada de transações
+    //   - alerts       → alertas ativos e histórico
+    //   - alert_rules  → regras customizadas (opcional)
+    //   - clusters     → agrupamentos de carteiras
+    //   - labels       → atribuições de identidade a endereços
+    //   - osint        → reports crowdsourced / fontes abertas
+    //   - reports      → laudos / relatórios gerados
+    //   - evidence     → cadeia de custódia (subcoleção de cases)
+    //
+    // Toda escrita precisa do usuário ser membro da org.
+    // ============================================================
+
+    function isMiraMember(orgId) {
+      return exists(/databases/$(database)/documents/userOrganizations/$(request.auth.uid + '_' + orgId));
+    }
+
+    // ---------- Cases (Investigações) ----------
+    match /tenants/{orgId}/cases/{caseId} {
+      allow read: if isAuthenticated() && isMiraMember(orgId);
+      allow create: if isAuthenticated() && isMiraMember(orgId) &&
+                       request.resource.data.keys().hasAll(['number', 'title', 'status', 'opened_at', 'created_by']);
+      allow update: if isAuthenticated() && isMiraMember(orgId);
+      allow delete: if isAuthenticated() && isMiraMember(orgId) &&
+                       getMembership(orgId).role == 'creator';
+
+      // Subcoleção: evidências (cadeia de custódia)
+      match /evidence/{evidenceId} {
+        allow read: if isAuthenticated() && isMiraMember(orgId);
+        allow create: if isAuthenticated() && isMiraMember(orgId);
+        // Evidências são imutáveis após criação (regra do direito probatório)
+        allow update, delete: if false;
+      }
+    }
+
+    // ---------- Wallets ----------
+    match /tenants/{orgId}/wallets/{walletId} {
+      allow read: if isAuthenticated() && isMiraMember(orgId);
+      allow create, update: if isAuthenticated() && isMiraMember(orgId);
+      allow delete: if isAuthenticated() && isMiraMember(orgId) &&
+                       getMembership(orgId).role == 'creator';
+    }
+
+    // ---------- Transactions ----------
+    match /tenants/{orgId}/transactions/{txId} {
+      allow read: if isAuthenticated() && isMiraMember(orgId);
+      // Em produção, transações viriam de Cloud Function (ingest de blocks).
+      // No protótipo, allow create para usuários autenticados membros.
+      allow create, update: if isAuthenticated() && isMiraMember(orgId);
+      allow delete: if false; // tx são imutáveis (audit trail)
+    }
+
+    // ---------- Alerts ----------
+    match /tenants/{orgId}/alerts/{alertId} {
+      allow read: if isAuthenticated() && isMiraMember(orgId);
+      // Alerts são gerados por Cloud Functions; membros podem acknowledge/resolve
+      allow update: if isAuthenticated() && isMiraMember(orgId);
+      allow create, delete: if false; // somente Cloud Functions
+    }
+
+    // ---------- Alert Rules (customizadas) ----------
+    match /tenants/{orgId}/alert_rules/{ruleId} {
+      allow read, write: if isAuthenticated() && isMiraMember(orgId) &&
+                           (getMembership(orgId).role == 'creator' ||
+                            getMembership(orgId).permissions.manage_modules == true);
+    }
+
+    // ---------- Clusters ----------
+    match /tenants/{orgId}/clusters/{clusterId} {
+      allow read: if isAuthenticated() && isMiraMember(orgId);
+      allow write: if false; // somente Cloud Functions (heurísticas)
+    }
+
+    // ---------- Labels (atribuições de identidade) ----------
+    match /tenants/{orgId}/labels/{labelId} {
+      allow read: if isAuthenticated() && isMiraMember(orgId);
+      allow create, update: if isAuthenticated() && isMiraMember(orgId);
+      allow delete: if isAuthenticated() && getMembership(orgId).role == 'creator';
+    }
+
+    // ---------- OSINT reports ----------
+    match /tenants/{orgId}/osint/{sourceId}/{reportId} {
+      allow read: if isAuthenticated() && isMiraMember(orgId);
+      allow create: if isAuthenticated() && isMiraMember(orgId);
+      allow update, delete: if isAuthenticated() && isMiraMember(orgId) &&
+                              (getMembership(orgId).role == 'creator' ||
+                               resource.data.submitted_by == request.auth.uid);
+    }
+
+    // ---------- Reports (laudos gerados) ----------
+    match /tenants/{orgId}/reports/{reportId} {
+      allow read: if isAuthenticated() && isMiraMember(orgId);
+      allow create, update: if isAuthenticated() && isMiraMember(orgId);
+      allow delete: if isAuthenticated() && getMembership(orgId).role == 'creator';
+    }
+
+    // ---------- Audit Logs MIRA ----------
+    match /tenants/{orgId}/audit_logs/{logId} {
+      allow read: if isAuthenticated() && isMiraMember(orgId);
+      allow write: if false; // somente Cloud Functions
+    }
+  }
+}

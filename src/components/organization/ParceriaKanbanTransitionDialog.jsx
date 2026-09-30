@@ -1,0 +1,405 @@
+import React, { useState, useEffect } from 'react';
+import { formatValidityPeriod, VIGENCIA_UNITS, calculateEndDate } from '@/lib/dateUtils';
+import { getParceriaField } from '@/utils/parceriaUtils';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter,
+    DialogDescription,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import { Loader2, UserCheck, Eye, Send, Handshake } from 'lucide-react';
+
+/**
+ * ParceriaKanbanTransitionDialog — modal de transição entre fases.
+ *
+ * Modes (forward only):
+ *  - "assign"            : Pendente → Em análise
+ *  - "review"            : Em análise → Revisão
+ *  - "third_party"       : Em análise/Revisão → Aguarda Terceiros
+ *  - "formalize"         : Aguarda Terceiros → Parcerias
+ *  - "extinguish"        : Parcerias → Extintos (handled by ExtinguishConfirmDialog;
+ *                          este modo fica apenas como fallback futuro)
+ */
+export default function ParceriaKanbanTransitionDialog({
+    open,
+    onClose,
+    mode,
+    parceria,
+    assessors = [],
+    defaultAssessor = '',
+    thirdParties = [],
+    onConfirm,
+}) {
+    const [selectedAssessor, setSelectedAssessor] = useState(defaultAssessor);
+    // Mostra as observações que a Parceria já tem, como os diálogos de Consultas
+    // e Expedientes. Começar vazio fazia qualquer texto digitado SUBSTITUIR as
+    // observações salvas sem que o usuário as visse. O board monta este
+    // diálogo a cada abertura, então o valor inicial é sempre o da Parceria atual.
+    const observacoesSalvas = parceria ? String(getParceriaField(parceria, 'observations') || '') : '';
+    const [observations, setObservations] = useState(observacoesSalvas);
+    const [networkFolder, setNetworkFolder] = useState('');
+    const [thirdParty, setThirdParty] = useState('');
+    const [signatureDate, setSignatureDate] = useState(new Date().toISOString().split('T')[0]);
+    const [demp, setDemp] = useState('');
+    const [objectText, setObjectText] = useState('');
+    const [partnershipType, setPartnershipType] = useState('');
+    const [partnershipNumber, setPartnershipNumber] = useState('');
+    // Vigência no formato unificado (igual ao aditivo): número + unidade.
+    const [validityValue, setValidityValue] = useState('');
+    const [validityUnit, setValidityUnit] = useState('meses');
+    // Item 4: 'vigência a contar de' — base do cálculo do termo final.
+    // Default: assinatura (preserva comportamento atual).
+    const [validityStartsFrom, setValidityStartsFrom] = useState('signature_date');
+    const [endDate, setEndDate] = useState('');
+    // Termo final é derivado da assinatura + vigência, mas pode ser editado
+    // manualmente; após edição manual paramos de sobrescrever.
+    const [endDateTouched, setEndDateTouched] = useState(false);
+    const [renewalNoticeDate, setRenewalNoticeDate] = useState('');
+    const [saving, setSaving] = useState(false);
+
+    // Deriva o Termo Final a partir da (assinatura OU DEMP) + vigência
+    // (número + unidade), enquanto o usuário não editar o campo manualmente.
+    useEffect(() => {
+        if (mode !== 'formalize') return;
+        if (endDateTouched) return;
+        // Item 6: usa o helper centralizado (considera vigência Indeterminada,
+        // base signature_date/demp e fallback para texto de vigência).
+        const computed = calculateEndDate({
+            signatureDate,
+            demp,
+            validityStartsFrom,
+            validityPeriod: formatValidityPeriod(validityValue, validityUnit),
+            validityValue,
+            validityUnit,
+            endDate,
+        });
+        if (computed) setEndDate(computed);
+    }, [mode, signatureDate, demp, validityValue, validityUnit, validityStartsFrom, endDate, endDateTouched]);
+
+    const getInitials = (name) => {
+        if (!name) return '?';
+        return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+    };
+
+    const handleConfirm = async () => {
+        setSaving(true);
+        try {
+            if (mode === 'assign') {
+                const m = assessors.find((a) => a.user_id === selectedAssessor);
+                await onConfirm({
+                    responsible_user_id: selectedAssessor,
+                    responsible_user_name: m?.user_name || '',
+                    responsibility_date: new Date().toISOString().split('T')[0],
+                });
+            } else if (mode === 'review') {
+                // Observações são opcionais: só vão no payload quando o usuário
+                // de fato as alterou (o campo já vem com o texto salvo).
+                const payload = { network_folder: networkFolder.trim() };
+                const obs = observations.trim();
+                if (obs !== observacoesSalvas.trim()) payload.observations = obs;
+                await onConfirm(payload);
+            } else if (mode === 'third_party') {
+                await onConfirm({
+                    third_party: thirdParty,
+                });
+            } else if (mode === 'formalize') {
+                await onConfirm({
+                    partnership_type: partnershipType,
+                    // partnership_number é OPCIONAL (vazio = "Sem número").
+                    partnership_number: partnershipNumber.trim(),
+                    signature_date: signatureDate,
+                    demp: demp.trim(),
+                    validity_period: formatValidityPeriod(validityValue, validityUnit),
+                    validity_value: Number(validityValue),
+                    validity_starts_from: validityStartsFrom,
+                    validity_unit: validityUnit,
+                    object: objectText.trim(),
+                    end_date: endDate,
+                    renewal_notice_date: renewalNoticeDate,
+                });
+            }
+            handleClose();
+        } catch (err) {
+            // error handled by parent
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleClose = () => {
+        setSelectedAssessor('');
+        setObservations('');
+        setNetworkFolder('');
+        setThirdParty('');
+        setSignatureDate(new Date().toISOString().split('T')[0]);
+        setDemp('');
+        setObjectText('');
+        setPartnershipType('');
+        setPartnershipNumber('');
+        setValidityValue('');
+        setValidityUnit('meses');
+        setValidityStartsFrom('signature_date');
+        setEndDate('');
+        setEndDateTouched(false);
+        setRenewalNoticeDate('');
+        setSaving(false);
+        onClose();
+    };
+
+    const isValid = () => {
+        if (mode === 'assign') return !!selectedAssessor;
+        if (mode === 'review') return networkFolder.trim().length > 0;
+        if (mode === 'third_party') return !!thirdParty;
+        if (mode === 'formalize') {
+            return (
+                !!partnershipType &&
+                // partnershipNumber é OPCIONAL (vazio = "Sem número").
+                !!signatureDate &&
+                demp.trim().length > 0 &&
+                Number(validityValue) > 0 &&
+                objectText.trim().length > 0 &&
+                !!endDate &&
+                !!renewalNoticeDate
+            );
+        }
+        return true;
+    };
+
+    const titles = {
+        assign: 'Atribuir Responsável',
+        review: 'Enviar para Revisão',
+        third_party: 'Remeter a Terceiros',
+        formalize: 'Formalizar Parceria',
+    };
+
+    const descriptions = {
+        assign: 'Escolha o assessor responsável. A data de distribuição é registrada automaticamente.',
+        review: 'Preencha os campos obrigatórios. A data de início da revisão é registrada automaticamente.',
+        third_party: 'Informe para quem a Parceria foi remetida. A data da remessa é registrada automaticamente.',
+        formalize: 'Preencha os dados de formalização. A data de retorno de terceiros é registrada automaticamente.',
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={handleClose}>
+            <DialogContent className="sm:max-w-lg">
+                <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                        {mode === 'assign' && <UserCheck className="w-5 h-5 text-amber-600" />}
+                        {mode === 'review' && <Eye className="w-5 h-5 text-sky-600" />}
+                        {mode === 'third_party' && <Send className="w-5 h-5 text-cyan-600" />}
+                        {mode === 'formalize' && <Handshake className="w-5 h-5 text-emerald-600" />}
+                        {titles[mode]}
+                    </DialogTitle>
+                    <DialogDescription className="text-sm text-slate-500">
+                        {descriptions[mode]}
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div className="space-y-4 py-2">
+                    {mode === 'assign' && (
+                        <div className="space-y-2">
+                            <Label>Assessor Responsável</Label>
+                            <Select value={selectedAssessor} onValueChange={setSelectedAssessor}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Selecione o assessor..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {assessors.map((m) => (
+                                        <SelectItem key={m.user_id} value={m.user_id}>
+                                            {m.user_name} {m.function ? `(${m.function})` : ''}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            {assessors.length === 0 && (
+                                <p className="text-xs text-rose-500 mt-1">
+                                    Nenhum assessor encontrado.
+                                </p>
+                            )}
+                        </div>
+                    )}
+
+                    {mode === 'review' && (
+                        <>
+                            <div>
+                                <Label>Pasta na Rede <span className="text-rose-500">*</span></Label>
+                                <Input
+                                    value={networkFolder}
+                                    onChange={(e) => setNetworkFolder(e.target.value)}
+                                    placeholder="\\rede\caminho\da\pasta"
+                                    className="mt-1"
+                                />
+                            </div>
+                            <div>
+                                <Label>Observações <span className="text-xs font-normal text-slate-400">(opcional)</span></Label>
+                                <Textarea
+                                    value={observations}
+                                    onChange={(e) => setObservations(e.target.value)}
+                                    rows={4}
+                                    className="mt-1"
+                                />
+                            </div>
+                        </>
+                    )}
+
+                    {mode === 'third_party' && (
+                        <div>
+                            <Label>Remetido para <span className="text-rose-500">*</span></Label>
+                            <Select value={thirdParty} onValueChange={setThirdParty}>
+                                <SelectTrigger className="mt-1">
+                                    <SelectValue placeholder="Selecione" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {thirdParties.map((tp) => (
+                                        <SelectItem key={tp} value={tp}>{tp}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    )}
+
+                    {mode === 'formalize' && (
+                        <>
+                            <div>
+                                <Label>Tipo de Parceria <span className="text-rose-500">*</span></Label>
+                                <Select value={partnershipType} onValueChange={setPartnershipType}>
+                                    <SelectTrigger className="mt-1">
+                                        <SelectValue placeholder="Selecione" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="convenio">Convênio</SelectItem>
+                                        <SelectItem value="termo_cooperacao">Termo de Cooperação</SelectItem>
+                                        <SelectItem value="termo_fomento">Termo de Fomento</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <Label>Número (vazio = "Sem número")</Label>
+                                    <Input
+                                        value={partnershipNumber}
+                                        onChange={(e) => setPartnershipNumber(e.target.value)}
+                                        placeholder="Ex.: 001/2024 (vazio = 'Sem número')"
+                                        className="mt-1 font-mono"
+                                    />
+                                </div>
+                                <div>
+                                    <Label>Data da Assinatura <span className="text-rose-500">*</span></Label>
+                                    <Input
+                                        type="date"
+                                        value={signatureDate}
+                                        onChange={(e) => setSignatureDate(e.target.value)}
+                                        className="mt-1"
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <Label>Publicação no DEMP <span className="text-rose-500">*</span></Label>
+                                <Input
+                                    type="date"
+                                    value={demp}
+                                    onChange={(e) => setDemp(e.target.value)}
+                                    className="mt-1"
+                                />
+                                <p className="text-[10px] text-slate-400 mt-0.5">Data de publicação no Diário Eletrônico do MP</p>
+                            </div>
+                            <div>
+                                <Label>Vigência <span className="text-rose-500">*</span></Label>
+                                <div className="flex gap-2 mt-1">
+                                    <Input
+                                        type="number"
+                                        min="0"
+                                        value={validityValue}
+                                        onChange={(e) => setValidityValue(e.target.value)}
+                                        placeholder="Ex.: 12"
+                                        className="w-28"
+                                    />
+                                    <Select value={validityUnit} onValueChange={setValidityUnit}>
+                                        <SelectTrigger className="w-36">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {VIGENCIA_UNITS.map((u) => (
+                                                <SelectItem key={u} value={u}>{u}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <p className="text-[10px] text-slate-400 mt-0.5">Define o Termo Final automaticamente.</p>
+                            </div>
+                            <div>
+                                <Label>Vigência a contar de</Label>
+                                <Select
+                                    value={validityStartsFrom}
+                                    onValueChange={setValidityStartsFrom}
+                                >
+                                    <SelectTrigger className="mt-1">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="signature_date">Data da Assinatura</SelectItem>
+                                        <SelectItem value="demp">Publicação no DEMP</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <p className="text-[10px] text-slate-400 mt-0.5">Base para o cálculo do Termo Final.</p>
+                            </div>
+                            <div>
+                                <Label>Objeto <span className="text-rose-500">*</span></Label>
+                                <Textarea
+                                    value={objectText}
+                                    onChange={(e) => setObjectText(e.target.value)}
+                                    rows={3}
+                                    placeholder="Descreva o objeto da Parceria..."
+                                    className="mt-1"
+                                />
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <Label>Termo Final <span className="text-rose-500">*</span></Label>
+                                    <Input
+                                        type="date"
+                                        value={endDate}
+                                        onChange={(e) => { setEndDate(e.target.value); setEndDateTouched(true); }}
+                                        className="mt-1"
+                                    />
+                                </div>
+                                <div>
+                                    <Label>Data do Aviso de Renovação <span className="text-rose-500">*</span></Label>
+                                    <Input
+                                        type="date"
+                                        value={renewalNoticeDate}
+                                        onChange={(e) => setRenewalNoticeDate(e.target.value)}
+                                        className="mt-1"
+                                    />
+                                </div>
+                            </div>
+                        </>
+                    )}
+                </div>
+
+                <DialogFooter>
+                    <Button type="button" variant="outline" onClick={handleClose}>
+                        Cancelar
+                    </Button>
+                    <Button type="button" onClick={handleConfirm} disabled={!isValid() || saving}>
+                        {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                        Confirmar
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}

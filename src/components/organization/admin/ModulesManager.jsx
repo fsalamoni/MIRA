@@ -1,0 +1,137 @@
+import React, { useMemo, useState } from 'react';
+import { toast } from 'sonner';
+import { Loader2, Save } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Switch } from '@/components/ui/switch';
+import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { updateOrganization } from '@/services/functionsService';
+import { BUILTIN_MODULE_META, BUILTIN_MODULES, resolveBuiltinModules } from '@/lib/organizationModules';
+import { useFlag } from '@/lib/FeatureFlagsContext';
+import { FEATURE_FLAGS } from '@/constants/featureFlags';
+import { logger } from '@/utils/logger';
+import EntityTypesManager from './EntityTypesManager';
+
+// Painel de administração: liga/desliga os módulos (páginas) do órgão.
+// Visível apenas quando a flag CUSTOM_ENTITIES está ligada (controlado pelo pai).
+export default function ModulesManager({ organization }) {
+    const initial = useMemo(() => resolveBuiltinModules(organization), [organization]);
+    const [enabled, setEnabled] = useState(initial);
+    const [isSaving, setIsSaving] = useState(false);
+
+    // Módulos que dependem de uma flag global da plataforma: enquanto a flag
+    // estiver desligada, o módulo não aparece em órgão nenhum, então também
+    // não faz sentido oferecer o interruptor aqui. O VALOR salvo do órgão é
+    // preservado (ver handleSave): religar a flag traz a escolha de volta.
+    const jurimetriaOn = useFlag(FEATURE_FLAGS.JURIMETRIA.key);
+    const panoramaOn = useFlag(FEATURE_FLAGS.PANORAMA.key);
+    const calendarOn = useFlag(FEATURE_FLAGS.DEADLINE_CALENDAR.key);
+    const visibleModules = useMemo(() => {
+        const flagDoModulo = {
+            [BUILTIN_MODULES.JURIMETRIA]: jurimetriaOn,
+            [BUILTIN_MODULES.PANORAMA]: panoramaOn,
+            [BUILTIN_MODULES.CALENDAR]: calendarOn,
+        };
+        return BUILTIN_MODULE_META.filter((mod) => flagDoModulo[mod.key] !== false);
+    }, [jurimetriaOn, panoramaOn, calendarOn]);
+
+    // Compara módulo a módulo com o estado original, para garantir que QUALQUER
+    // toggle (incluindo Parcerias) marque o formulário como "sujo" e habilite
+    // o botão Salvar. Omitir parcerias aqui era o bug que impedia o admin de
+    // persistir a ativação do módulo no órgão.
+    const dirty = useMemo(() => {
+        return visibleModules.some(
+            (mod) => enabled[mod.key] !== initial[mod.key]
+        );
+    }, [enabled, initial, visibleModules]);
+
+    const toggle = (key) => {
+        setEnabled((prev) => ({ ...prev, [key]: !prev[key] }));
+    };
+
+    const handleSave = async () => {
+        try {
+            setIsSaving(true);
+            // Envia TODOS os módulos built-in (não apenas os alterados), para que
+            // o sanitizeModuleConfig do backend receba um payload completo e o
+            // moduleConfig do órgão não perca chaves.
+            const moduleConfig = {};
+            for (const mod of BUILTIN_MODULE_META) {
+                moduleConfig[mod.key] = { enabled: enabled[mod.key] === true };
+            }
+            await updateOrganization({
+                organizationId: organization.id,
+                data: { moduleConfig },
+            });
+            toast.success('Páginas atualizadas com sucesso!');
+        } catch (error) {
+            logger.error('Erro ao salvar módulos:', error);
+            toast.error('Erro ao salvar páginas: ' + (error?.message || 'tente novamente'));
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    return (
+        <div className="space-y-6">
+            <div>
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Páginas e Módulos</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                    Escolha quais páginas aparecem para este órgão. Desligar uma página apenas a oculta da navegação —
+                    nenhum dado é apagado, e você pode religar a qualquer momento.
+                </p>
+            </div>
+
+            <Alert>
+                <AlertDescription>
+                    As páginas <strong>Informações Gerais</strong> e <strong>Painel Administrativo</strong> são fixas e
+                    estão sempre disponíveis.
+                </AlertDescription>
+            </Alert>
+
+            <div className="space-y-3">
+                {visibleModules.map((mod) => {
+                    const ModIcon = mod.icon;
+                    return (
+                        <Card key={mod.key} className="border-slate-200 dark:border-slate-700">
+                            <CardHeader className="pb-3">
+                                <div className="flex items-center justify-between gap-4">
+                                    <div className="flex items-start gap-3 min-w-0">
+                                        <div className="w-9 h-9 rounded-lg bg-indigo-50 dark:bg-indigo-950 flex items-center justify-center shrink-0">
+                                            <ModIcon className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                                        </div>
+                                        <div className="min-w-0">
+                                            <CardTitle className="text-base">{mod.label}</CardTitle>
+                                            <CardDescription>{mod.description}</CardDescription>
+                                        </div>
+                                    </div>
+                                    <Switch
+                                        checked={enabled[mod.key] === true}
+                                        onCheckedChange={() => toggle(mod.key)}
+                                        aria-label={`Ativar ${mod.label}`}
+                                    />
+                                </div>
+                            </CardHeader>
+                            <CardContent className="pt-0">
+                                <p className="text-xs text-slate-400 dark:text-slate-500">
+                                    {enabled[mod.key] ? 'Visível na navegação do órgão.' : 'Oculto (os dados permanecem salvos).'}
+                                </p>
+                            </CardContent>
+                        </Card>
+                    );
+                })}
+            </div>
+
+            <div className="flex justify-end">
+                <Button onClick={handleSave} disabled={!dirty || isSaving} className="gap-2">
+                    {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                    Salvar páginas
+                </Button>
+            </div>
+
+            <div className="border-t border-slate-200 dark:border-slate-700 pt-6">
+                <EntityTypesManager organization={organization} />
+            </div>
+        </div>
+    );
+}

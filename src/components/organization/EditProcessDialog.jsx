@@ -1,0 +1,860 @@
+import React, { useState, useEffect } from 'react';
+import MatterCategorySelect from './MatterCategorySelect';
+import { useAuth } from '@/lib/FirebaseAuthContext';
+import { useOrgPermission } from '@/lib/OrganizationPermissionsContext';
+import { updateProcess, deleteProcess, logAccess } from '@/services/functionsService';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Switch } from '@/components/ui/switch';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { toast } from 'sonner';
+import { Loader2, Check, ChevronsUpDown, CheckCircle2 } from 'lucide-react';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { cn } from '@/lib/utils';
+import { format, isValid } from 'date-fns';
+import { parseLocalDate } from '@/lib/dateUtils';
+import { logger } from '@/utils/logger';
+import ProcessLogDialog from './ProcessLogDialog';
+import EntityComments from './EntityComments';
+import { LivePresenceIndicator } from '@/lib/LivePresence';
+import { useFlag } from '@/lib/FeatureFlagsContext';
+import { FEATURE_FLAGS } from '@/constants/featureFlags';
+
+import { RS_CITIES } from '@/utils/cities';
+
+const DEFAULT_THIRD_PARTIES = ['Perícia', 'Delegacia de Polícia', 'Outro Órgão Público', 'Terceiro'];
+
+export default function EditProcessDialog({ open, setOpen, process, members, onSuccess, organizationId, userRole, organization }) {
+  const { user } = useAuth();
+  const canDeleteRecords = useOrgPermission('delete_records');
+  const isCommentsOn = useFlag(FEATURE_FLAGS.PROCESS_COMMENTS.key);
+  const isPresenceOn = useFlag(FEATURE_FLAGS.LIVE_PRESENCE.key);
+  const showCollabTab = isCommentsOn || isPresenceOn;
+  const isAccessAuditLogOn = useFlag(FEATURE_FLAGS.ACCESS_AUDIT_LOG.key);
+
+  // Log de acesso e auditoria (flag `access_audit_log`): registra a abertura
+  // de um registro com restrição de acesso. Uma vez por abertura do diálogo.
+  // Mesma normalização usada em KanbanCard.jsx: o campo pode vir como
+  // booleano OU como string "Sim"/"Não" (dados importados de Excel) — uma
+  // checagem "truthy" simples trataria "Não" (string não-vazia) como restrito.
+  const isProcessRestricted = process?.access_restriction === true
+    || String(process?.access_restriction).toLowerCase().trim() === 'sim';
+
+  useEffect(() => {
+    if (open && isAccessAuditLogOn && isProcessRestricted && process?.id) {
+      logAccess({
+        organizationId,
+        entityType: 'process',
+        entityId: process.id,
+        action: 'view_restricted',
+      }).catch(() => { /* best-effort */ });
+    }
+  }, [open, process?.id]);
+  const [formData, setFormData] = useState({
+    process_number: '',
+    consultant: '',
+    location: '',
+    entry_date: '',
+    matter_category: '',
+    matter_subcategory: '',
+    matter_object: '',
+    urgency_request: false,
+    distribution_date: '',
+    responsible_user_id: '',
+    responsible_user_name: '',
+    analysis_start_date: '',
+    observations: '',
+    third_party_referral_date: '',
+    third_party_recipient: '',
+    review_submission_date: '',
+    reviewed_date: '',
+    review_return_date: '',
+    access_restriction: false,
+    archived_date: '',
+    network_folder: '',
+    status: '',
+  });
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [logOpen, setLogOpen] = useState(false);
+  const [locationOpen, setLocationOpen] = useState(false);
+
+  // Lista de terceiros personalizável por órgão (Painel Administrativo →
+  // Padronização de Consultas), usada no campo "Remetido para".
+  const thirdParties = organization?.thirdPartiesSettingsConsultas || DEFAULT_THIRD_PARTIES;
+
+  // Liga/desliga a fase "Aguarda retorno de terceiros" (Painel Administrativo
+  // → Classificação (matérias)). Ausente/undefined = habilitada. Mesmo
+  // desligada, os campos continuam visíveis para um processo que JÁ esteja
+  // nesta fase — nunca esconde dados reais já preenchidos.
+  const thirdPartyPhaseEnabled = organization?.thirdPartyPhaseEnabledConsultas !== false;
+  const processAlreadyInThirdPartyPhase = Boolean(process?.third_party_referral_date) || process?.status === 'Aguarda retorno de terceiros';
+  const showThirdPartyPhase = thirdPartyPhaseEnabled || processAlreadyInThirdPartyPhase;
+
+  // Helper to safely format dates for input type="date" (YYYY-MM-DD)
+  const formatDateForInput = (value) => {
+    if (!value) return '';
+    try {
+      const d = parseLocalDate(value);
+      if (isValid(d)) {
+        return format(d, 'yyyy-MM-dd');
+      }
+      return '';
+    } catch (e) {
+      console.error('Error formatting date:', value, e);
+      return '';
+    }
+  };
+
+  useEffect(() => {
+    if (process) {
+      // Aggressive key normalization to match DB keys regardless of casing, underscores, spaces, or line breaks
+      const normalizeKey = (k) => k.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+      const getValue = (keys, defaultValue) => {
+        // 1. Direct match (highest priority)
+        for (const key of keys) {
+          if (process[key] !== undefined && process[key] !== null && String(process[key]).trim() !== '') {
+            return process[key];
+          }
+        }
+
+        // 2. Normalized match (aggressive)
+        const allKeys = Object.keys(process);
+        const normalizedRequestedKeys = keys.map(normalizeKey);
+
+        for (const dbKey of allKeys) {
+          const normDbKey = normalizeKey(dbKey);
+          if (normalizedRequestedKeys.includes(normDbKey)) {
+            const val = process[dbKey];
+            if (val !== undefined && val !== null && String(val).trim() !== '') {
+              return val;
+            }
+          }
+        }
+
+        return defaultValue;
+      };
+
+      // Special helper for booleans to catch "Sim", "Não", "true" etc.
+      const getBoolValue = (keys, defaultValue = false) => {
+        const val = getValue(keys, null);
+        if (val === null) return defaultValue;
+        if (typeof val === 'boolean') return val;
+        const lowerVal = String(val).toLowerCase().trim();
+        return lowerVal === 'sim' || lowerVal === 'true' || lowerVal === 's' || lowerVal === '1';
+      };
+
+      // Special handling for responsible advisor to ensure we get an ID even if only name is provided
+      const respId = getValue(['responsible_user_id', 'responsibleUserId', 'responsible_id', 'member_id'], '');
+      const respName = getValue(['responsible_user_name', 'responsibleUserName', 'assessor', 'assessor_responsavel', 'responsavel'], '');
+
+      let finalRespId = respId;
+      // If we don't have an ID but have a name, try to find the member
+      if (!finalRespId && respName && members) {
+        const found = members.find(m =>
+          m.user_id === respName || // Name might actually be an ID string
+          m.user_name?.toLowerCase().trim() === respName.toString().toLowerCase().trim() ||
+          m.displayName?.toLowerCase().trim() === respName.toString().toLowerCase().trim()
+        );
+        if (found) {
+          finalRespId = found.user_id;
+        }
+      }
+
+      // Definitive fix: if we have a name but no ID match, use a placeholder ID
+      // This ensures the Select component has a non-empty value to match its Item
+      if (!finalRespId && respName) {
+        finalRespId = 'historical__advisor__placeholder';
+      }
+
+      setFormData({
+        process_number: getValue(['process_number', 'numero', 'n_processo', 'processo', 'PROCESSO SIM\n(NÚMERO)', 'PROCESSO SIM\\n(NÚMERO)']),
+        consultant: getValue(['consultant', 'consulente', 'cliente', 'interessado', 'CONSULENTE']),
+        location: getValue(['location', 'local', 'cidade', 'local_fatos', 'municipio', 'LOCAL DOS FATOS\n(CIDADE)', 'LOCAL DOS FATOS\\n(CIDADE)']),
+        entry_date: formatDateForInput(getValue(['entry_date', 'data_entrada', 'entrada', 'data', 'ENTRADA NO CAOPP\n(DATA)', 'ENTRADA NO CAOPP\\n(DATA)'])),
+        matter_category: getValue(['matter_category']),
+        matter_subcategory: getValue(['matter_subcategory']),
+        matter_object: getValue(['matter_object', 'objeto', 'assunto', 'materia', 'descricao', 'MATÉRIA E OBJETO DA CONSULTA']),
+        urgency_request: getBoolValue(['urgency_request', 'urgente', 'prioridade', 'urgente', 'PEDIDO DE URGÊNCIA', 'Solicitação de Urgência'], false),
+        distribution_date: formatDateForInput(getValue(['distribution_date', 'data_distribuicao', 'distribuicao', 'DISTRIBUIÇÃO\n(DATA)', 'DISTRIBUIÇÃO\\n(DATA)'])),
+        responsible_user_id: finalRespId || '',
+        responsible_user_name: respName || (members?.find(m => m.user_id === finalRespId)?.user_name || ''),
+        analysis_start_date: formatDateForInput(getValue(['analysis_start_date', 'inicio_analise', 'data_inicio', 'INÍCIO DA ANÁLISE\n(DATA)', 'INÍCIO DA ANÁLISE\\n(DATA)'])),
+        observations: getValue(['observations', 'observacoes', 'notas', 'pontos_importantes', 'obs', 'OBSERVAÇÕES E PONTOS IMPORTANTES DA RESPOSTA']),
+        third_party_referral_date: formatDateForInput(getValue(['third_party_referral_date', 'remessa_terceiros', 'data_remessa_terceiros'])),
+        third_party_recipient: getValue(['third_party_recipient', 'remetido_para', 'destinatario_terceiros']),
+        review_submission_date: formatDateForInput(getValue(['review_submission_date', 'remessa_revisao', 'data_revisao', 'remessa', 'REMESSA AO DR. PARA REVISÃO (DATA)'])),
+        reviewed_date: formatDateForInput(getValue(['reviewed_date', 'data_revisao_concluida', 'revisado', 'revisao_concluida', 'REVISÃO CONCLUÍDA (DATA)'])),
+        review_return_date: formatDateForInput(getValue(['review_return_date', 'devolucao_revisao', 'retorno_revisao', 'retorno', 'DEVOLUÇÃO APÓS REVISÃO\n(DATA)', 'DEVOLUÇÃO APÓS REV ISÃO\\n(DATA)'])),
+        access_restriction: getBoolValue(['access_restriction', 'restricao', 'restrito', 'sigilo', 'RESTRIÇÃO DE ACESSO'], false),
+        archived_date: formatDateForInput(getValue(['archived_date', 'data_arquivamento', 'arquivamento', 'data_arquivo', 'NA PASTA\nARQUIVADO\n(DATA)', 'NA PASTA\\nARQUIVADO\\n(DATA)'])),
+        network_folder: getValue(['network_folder', 'network_folder_path', 'pasta', 'pasta_rede', 'caminho', 'PASTA NA REDE']),
+        status: getValue(['status', 'situacao', 'estado'], 'Pendente') || 'Pendente',
+      });
+    }
+    // `members` é lido aqui só para resolver responsible_user_id a partir de
+    // um nome legado (quando não há id salvo) — não deve disparar de novo
+    // sempre que o roster do órgão mudar (qualquer entrada/saída/edição de
+    // membro em QUALQUER lugar do app atualiza esse array), senão o
+    // formulário era resetado no meio da digitação do usuário, descartando
+    // o que ainda não tinha sido salvo.
+  }, [process]);
+
+  const getRollbackByStatus = (status, emptyValue = '') => {
+    if (status === 'Pendente') {
+      return {
+        analysis_start_date: emptyValue,
+        third_party_referral_date: emptyValue,
+        third_party_recipient: emptyValue,
+        review_submission_date: emptyValue,
+        reviewed_date: emptyValue,
+        review_return_date: emptyValue,
+        archived_date: emptyValue,
+        responsible_user_id: emptyValue,
+        responsible_user_name: emptyValue,
+      };
+    }
+
+    if (status === 'Em elaboração') {
+      return {
+        third_party_referral_date: emptyValue,
+        third_party_recipient: emptyValue,
+        review_submission_date: emptyValue,
+        reviewed_date: emptyValue,
+        review_return_date: emptyValue,
+        archived_date: emptyValue,
+      };
+    }
+
+    if (status === 'Aguarda retorno de terceiros') {
+      return {
+        review_submission_date: emptyValue,
+        reviewed_date: emptyValue,
+        review_return_date: emptyValue,
+        archived_date: emptyValue,
+      };
+    }
+
+    if (status === 'Em revisão') {
+      return {
+        reviewed_date: emptyValue,
+        archived_date: emptyValue,
+      };
+    }
+
+    if (status === 'Revisadas') {
+      return {
+        archived_date: emptyValue,
+      };
+    }
+
+    return {};
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    try {
+      setIsUpdating(true);
+
+      const rollbackForStatus = getRollbackByStatus(formData.status, null);
+
+      // Use snake_case keys to match Firestore schema and UI expectations
+      // The backend update.ts merges this record directly into Firestore
+      const updateData = {
+        process_number: formData.process_number,
+        consultant: formData.consultant,
+        location: formData.location,
+        entry_date: formData.entry_date,
+        matter_category: formData.matter_category || '',
+        matter_subcategory: formData.matter_subcategory || '',
+        matter_object: formData.matter_object,
+        urgency_request: formData.urgency_request,
+        distribution_date: formData.distribution_date || null,
+        responsible_user_id: formData.responsible_user_id || null,
+        responsible_user_name: formData.responsible_user_name || null,
+        analysis_start_date: formData.analysis_start_date || null,
+        observations: formData.observations || '',
+        third_party_referral_date: formData.third_party_referral_date || null,
+        third_party_recipient: formData.third_party_recipient || null,
+        review_submission_date: formData.review_submission_date || null,
+        reviewed_date: formData.reviewed_date || null,
+        review_return_date: formData.review_return_date || null,
+        access_restriction: formData.access_restriction,
+        archived_date: formData.archived_date || null,
+        network_folder: formData.network_folder || '',
+        status: formData.status,
+      };
+
+      // Only apply rollback for fields that the user left empty.
+      // This prevents overwriting explicit user edits (e.g. assigning a responsible
+      // to a "Pendente" process should keep that responsible, not null it out).
+      const originalStatus = process?.status || 'Pendente';
+      if (formData.status !== originalStatus) {
+        for (const [key, value] of Object.entries(rollbackForStatus)) {
+          if (!updateData[key]) {
+            updateData[key] = value;
+          }
+        }
+      }
+
+
+      await updateProcess({
+        id: process.id,
+        organizationId: organizationId || process.organization_id,
+        changes: updateData
+      });
+
+      toast.success('Processo atualizado com sucesso!');
+      setOpen(false);
+      if (onSuccess) onSuccess();
+    } catch (error) {
+      logger.error('Error updating process:', error);
+      toast.error('Erro ao atualizar processo: ' + error.message);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleResponsibleChange = (userId) => {
+    if (userId === 'historical__advisor__placeholder') return;
+
+    if (userId === '__none__') {
+      setFormData(prev => ({
+        ...prev,
+        responsible_user_id: '',
+        responsible_user_name: '',
+      }));
+      return;
+    }
+
+    const member = members.find(m => m.user_id === userId);
+    setFormData(prev => ({
+      ...prev,
+      responsible_user_id: userId,
+      responsible_user_name: member?.user_name || member?.displayName || ''
+    }));
+  };
+
+  const handleStatusChange = (status) => {
+    setFormData(prev => ({
+      ...prev,
+      status,
+      ...getRollbackByStatus(status),
+    }));
+  };
+
+  const handleDelete = async () => {
+    const confirmed = window.confirm(
+      `Tem certeza que deseja excluir o processo ${process?.process_number}? Esta ação não pode ser desfeita.`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setIsDeleting(true);
+
+      await deleteProcess({ id: process.id, organizationId: organizationId || process.organization_id });
+
+      toast.success('Processo excluído com sucesso!');
+      setOpen(false);
+      if (onSuccess) onSuccess();
+    } catch (error) {
+      logger.error('Error deleting process:', error);
+      toast.error('Erro ao excluir processo: ' + error.message);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  // Permission check for delete button
+  const canDelete = userRole === 'admin' || userRole === 'owner' || userRole === 'creator' || canDeleteRecords;
+
+  const renderValidationSignal = (field) => {
+    if (formData[field] && String(formData[field]).trim() !== '') {
+      return <CheckCircle2 className="w-4 h-4 text-emerald-500 animate-in zoom-in duration-300" />;
+    }
+    return null;
+  };
+
+  return (
+    <>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <div className="flex items-center justify-between">
+              <DialogTitle>Editar Processo - {formData.process_number || process?.process_number || 'Sem Número'}</DialogTitle>
+            </div>
+          </DialogHeader>
+
+          <form onSubmit={handleSubmit} className="mt-4">
+            <Tabs defaultValue="basic" className="w-full">
+              <TabsList className={cn('grid w-full', showCollabTab ? 'grid-cols-4' : 'grid-cols-3')}>
+                <TabsTrigger value="basic">Dados Básicos</TabsTrigger>
+                <TabsTrigger value="workflow">Fluxo de Trabalho</TabsTrigger>
+                <TabsTrigger value="archive">Revisão e Arquivo</TabsTrigger>
+                {showCollabTab && <TabsTrigger value="collab">Colaboração</TabsTrigger>}
+              </TabsList>
+
+              <TabsContent value="basic" className="space-y-4 mt-4">
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="process_number">Nº do Processo</Label>
+                      {renderValidationSignal('process_number')}
+                    </div>
+                    <Input
+                      id="process_number"
+                      value={formData.process_number || ''}
+                      onChange={(e) => setFormData({ ...formData, process_number: e.target.value })}
+                      required
+                      className={cn(
+                        "mt-1 transition-all duration-300",
+                        formData.process_number ? "border-emerald-200 focus-visible:ring-emerald-500" : ""
+                      )}
+                    />
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="consultant">Consulente</Label>
+                      {renderValidationSignal('consultant')}
+                    </div>
+                    <Input
+                      id="consultant"
+                      value={formData.consultant || ''}
+                      onChange={(e) => setFormData({ ...formData, consultant: e.target.value })}
+                      required
+                      className={cn(
+                        "mt-1 transition-all duration-300",
+                        formData.consultant ? "border-emerald-200 focus-visible:ring-emerald-500" : ""
+                      )}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="location">Local dos Fatos</Label>
+                      {renderValidationSignal('location')}
+                    </div>
+                    <Popover open={locationOpen} onOpenChange={setLocationOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={locationOpen}
+                          className={cn(
+                            "w-full justify-between mt-1 font-normal transition-all duration-300",
+                            formData.location ? "border-emerald-200 bg-emerald-50/10" : ""
+                          )}
+                        >
+                          {formData.location
+                            ? formData.location
+                            : "Selecione a cidade..."}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[300px] p-0" align="start">
+                        <Command
+                          filter={(value, search) => {
+                            if (value.toLowerCase().includes(search.toLowerCase())) return 1;
+                            const normalizedValue = value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+                            const normalizedSearch = search.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+                            if (normalizedValue.includes(normalizedSearch)) return 1;
+                            return 0;
+                          }}
+                        >
+                          <CommandInput placeholder="Buscar cidade..." />
+                          <CommandList>
+                            <CommandEmpty>Nenhuma cidade encontrada.</CommandEmpty>
+                            <CommandGroup>
+                              {RS_CITIES.map((city) => (
+                                <CommandItem
+                                  key={city}
+                                  value={city}
+                                  onSelect={(currentValue) => {
+                                    const actualCity = RS_CITIES.find(c => c.toLowerCase() === currentValue.toLowerCase()) || currentValue;
+                                    setFormData({ ...formData, location: actualCity });
+                                    setLocationOpen(false);
+                                  }}
+                                >
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-4 w-4",
+                                      formData.location === city ? "opacity-100" : "opacity-0"
+                                    )}
+                                  />
+                                  {city}
+                                </CommandItem>
+                              ))}
+                              {formData.location && !RS_CITIES.includes(formData.location) && (
+                                <CommandItem
+                                  key="custom-location"
+                                  value={formData.location}
+                                  onSelect={(currentValue) => {
+                                    setFormData({ ...formData, location: currentValue });
+                                    setLocationOpen(false);
+                                  }}
+                                >
+                                  <Check className="mr-2 h-4 w-4 opacity-100" />
+                                  {formData.location} (Histórico)
+                                </CommandItem>
+                              )}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="entry_date">Data de Entrada</Label>
+                      {renderValidationSignal('entry_date')}
+                    </div>
+                    <Input
+                      id="entry_date"
+                      type="date"
+                      value={formData.entry_date || ''}
+                      onChange={(e) => setFormData({ ...formData, entry_date: e.target.value })}
+                      className={cn(
+                        "mt-1 transition-all duration-300",
+                        formData.entry_date ? "border-emerald-200 focus-visible:ring-emerald-500" : ""
+                      )}
+                    />
+                  </div>
+                </div>
+
+                <MatterCategorySelect
+                  category={formData.matter_category}
+                  subcategory={formData.matter_subcategory}
+                  onCategoryChange={(val) => setFormData({ ...formData, matter_category: val, matter_subcategory: '' })}
+                  onSubcategoryChange={(val) => setFormData({ ...formData, matter_subcategory: val })}
+                  organization={organization}
+                />
+
+                <div>
+                  <Label htmlFor="matter_object">Objeto da Consulta</Label>
+                  <Textarea
+                    id="matter_object"
+                    value={formData.matter_object || ''}
+                    onChange={(e) => setFormData({ ...formData, matter_object: e.target.value })}
+                    rows={3}
+                    className="mt-1"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                  <Label>Pedido de Urgência</Label>
+                  <Switch
+                    checked={formData.urgency_request || false}
+                    onCheckedChange={(checked) => setFormData({ ...formData, urgency_request: checked })}
+                  />
+                </div>
+              </TabsContent>
+
+              <TabsContent value="workflow" className="space-y-4 mt-4">
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="distribution_date">Data de Distribuição</Label>
+                    <Input
+                      id="distribution_date"
+                      type="date"
+                      value={formData.distribution_date || ''}
+                      onChange={(e) => setFormData({ ...formData, distribution_date: e.target.value })}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="responsible">Assessor Responsável</Label>
+                    <Select
+                      value={formData.responsible_user_id || ''}
+                      onValueChange={handleResponsibleChange}
+                    >
+                      <SelectTrigger className="mt-1">
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">Sem assessor responsável</SelectItem>
+                        {members.map(member => (
+                          <SelectItem key={member.user_id} value={member.user_id}>
+                            {member.user_name}
+                          </SelectItem>
+                        ))}
+                        {/* Definitive fix: use the assigned ID (even placeholder) to match this item */}
+                        {formData.responsible_user_id && !members.find(m => m.user_id === formData.responsible_user_id) && formData.responsible_user_name && (
+                          <SelectItem value={formData.responsible_user_id}>
+                            {formData.responsible_user_name}
+                          </SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="analysis_start_date">Início da Análise</Label>
+                  <Input
+                    id="analysis_start_date"
+                    type="date"
+                    value={formData.analysis_start_date || ''}
+                    onChange={(e) => setFormData({ ...formData, analysis_start_date: e.target.value })}
+                    className="mt-1"
+                  />
+                </div>
+
+                {showThirdPartyPhase && (
+                  <div className="grid md:grid-cols-2 gap-4 p-4 bg-cyan-50/50 dark:bg-cyan-950/30 rounded-lg border border-cyan-100 dark:border-cyan-800">
+                    <div>
+                      <Label htmlFor="third_party_referral_date">Data da Remessa a Terceiros</Label>
+                      <Input
+                        id="third_party_referral_date"
+                        type="date"
+                        value={formData.third_party_referral_date || ''}
+                        onChange={(e) => setFormData({ ...formData, third_party_referral_date: e.target.value })}
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="third_party_recipient">Remetido para</Label>
+                      <Select
+                        value={formData.third_party_recipient || ''}
+                        onValueChange={(val) => setFormData({ ...formData, third_party_recipient: val })}
+                      >
+                        <SelectTrigger className="mt-1">
+                          <SelectValue placeholder="Selecione o destinatário" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {thirdParties.map(name => (
+                            <SelectItem key={name} value={name}>{name}</SelectItem>
+                          ))}
+                          {formData.third_party_recipient && !thirdParties.includes(formData.third_party_recipient) && (
+                            <SelectItem value={formData.third_party_recipient}>{formData.third_party_recipient} (Histórico)</SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <Label htmlFor="observations">Observações e Pontos Importantes</Label>
+                  <Textarea
+                    id="observations"
+                    value={formData.observations || ''}
+                    onChange={(e) => setFormData({ ...formData, observations: e.target.value })}
+                    placeholder="Observações sobre a análise..."
+                    rows={4}
+                    className="mt-1"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="status">Status do Processo</Label>
+                  <Select
+                    value={formData.status || ''}
+                    onValueChange={handleStatusChange}
+                  >
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="Selecione o status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Pendente">Pendente</SelectItem>
+                      <SelectItem value="Em elaboração">Em elaboração</SelectItem>
+                      {showThirdPartyPhase && (
+                        <SelectItem value="Aguarda retorno de terceiros">Aguarda retorno de terceiros</SelectItem>
+                      )}
+                      <SelectItem value="Em revisão">Em revisão</SelectItem>
+                      <SelectItem value="Revisadas">Revisadas</SelectItem>
+                      <SelectItem value="Na pasta">Na pasta</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="archive" className="space-y-4 mt-4">
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="review_submission_date">Remessa para Revisão</Label>
+                    <Input
+                      id="review_submission_date"
+                      type="date"
+                      value={formData.review_submission_date || ''}
+                      onChange={(e) => setFormData({ ...formData, review_submission_date: e.target.value })}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="reviewed_date">Revisão Concluída</Label>
+                    <Input
+                      id="reviewed_date"
+                      type="date"
+                      value={formData.reviewed_date || ''}
+                      onChange={(e) => setFormData({ ...formData, reviewed_date: e.target.value })}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="review_return_date">Devolução após Revisão</Label>
+                    <Input
+                      id="review_return_date"
+                      type="date"
+                      value={formData.review_return_date || ''}
+                      onChange={(e) => setFormData({ ...formData, review_return_date: e.target.value })}
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="archived_date">Data de Arquivamento</Label>
+                  <Input
+                    id="archived_date"
+                    type="date"
+                    value={formData.archived_date || ''}
+                    onChange={(e) => setFormData({ ...formData, archived_date: e.target.value })}
+                    className="mt-1"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="network_folder">Pasta na Rede</Label>
+                  <Input
+                    id="network_folder"
+                    value={formData.network_folder || ''}
+                    onChange={(e) => setFormData({ ...formData, network_folder: e.target.value })}
+                    placeholder="Caminho da pasta na rede..."
+                    className="mt-1"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                  <Label>Restrição de Acesso</Label>
+                  <Switch
+                    checked={formData.access_restriction || false}
+                    onCheckedChange={(checked) => setFormData({ ...formData, access_restriction: checked })}
+                  />
+                </div>
+              </TabsContent>
+
+              {showCollabTab && (
+                <TabsContent value="collab" className="space-y-4 mt-4">
+                  {isPresenceOn && process?.id && (
+                    <LivePresenceIndicator
+                      organizationId={organizationId}
+                      entityType="process"
+                      entityId={process.id}
+                      userName={user?.displayName}
+                    />
+                  )}
+                  {isCommentsOn && process?.id ? (
+                    <EntityComments
+                      organizationId={organizationId}
+                      entityType="process"
+                      entityId={process.id}
+                      members={members}
+                    />
+                  ) : isCommentsOn && (
+                    <p className="text-sm text-slate-400 dark:text-slate-500 text-center py-6">
+                      Salve o processo antes de adicionar comentários.
+                    </p>
+                  )}
+                </TabsContent>
+              )}
+
+            </Tabs>
+
+            <div className="flex justify-between gap-3 pt-4 border-t border-slate-200 dark:border-slate-700">
+              <div className="flex">
+                {canDelete && (
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    onClick={handleDelete}
+                    disabled={isDeleting || isUpdating}
+                  >
+                    {isDeleting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Excluindo...
+                      </>
+                    ) : (
+                      'Excluir'
+                    )}
+                  </Button>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                {userRole === 'creator' && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setLogOpen(true)}
+                    className="text-indigo-600 border-indigo-200 hover:bg-indigo-50"
+                  >
+                    Verificar Log
+                  </Button>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button
+                  type="submit"
+                  className="bg-primary"
+                  disabled={isUpdating || isDeleting}
+                >
+                  {isUpdating ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Salvando...
+                    </>
+                  ) : (
+                    'Salvar Alterações'
+                  )}
+                </Button>
+              </div>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Process Activity Log Dialog */}
+      <ProcessLogDialog
+        open={logOpen}
+        onClose={() => setLogOpen(false)}
+        process={process}
+      />
+    </>
+  );
+}

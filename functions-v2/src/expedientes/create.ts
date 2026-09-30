@@ -1,0 +1,153 @@
+import * as admin from 'firebase-admin';
+import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { calculateStatus } from '../shared/status';
+import { formatPersonName } from '../shared/normalization';
+import { historyEntryId } from '../shared/history';
+import { fireOrgWebhook } from '../shared/webhooks';
+
+interface CreateExpedienteRequest {
+    organizationId: string;
+    expedienteNumber: string;
+    system: string;
+    origin: string;
+    entryDate: string;
+    object: string;
+    urgencyRequest: boolean;
+    distributionDate?: string;
+    responsibleUserId?: string;
+    responsibleUserName?: string;
+    analysisStartDate?: string;
+    observations?: string;
+    reviewSubmissionDate?: string;
+    reviewedDate?: string;
+    reviewReturnDate?: string;
+    archivedDate?: string;
+    networkFolder?: string;
+}
+
+export const createExpediente = onCall<CreateExpedienteRequest>(
+    { region: 'southamerica-east1' },
+    async (request) => {
+        if (!request.auth) {
+            throw new HttpsError('unauthenticated', 'Authenticated user required');
+        }
+
+        const data = request.data;
+        const { organizationId, expedienteNumber } = data;
+
+        if (!organizationId || !expedienteNumber) {
+            throw new HttpsError('invalid-argument', 'Missing required fields');
+        }
+
+        const db = admin.firestore();
+        const userId = request.auth.uid;
+
+        // 1. Verify membership
+        const membershipRef = db.collection('userOrganizations').doc(`${userId}_${organizationId}`);
+        const membershipSnap = await membershipRef.get();
+        if (!membershipSnap.exists) {
+            throw new HttpsError('permission-denied', 'You are not a member of this organization');
+        }
+
+        // 2. Calculate initial status based on dates
+        const status = calculateStatus({
+            entry_date: data.entryDate,
+            distribution_date: data.distributionDate,
+            analysis_start_date: data.analysisStartDate,
+            review_submission_date: data.reviewSubmissionDate,
+            reviewed_date: data.reviewedDate,
+            review_return_date: data.reviewReturnDate,
+            archived_date: data.archivedDate
+        });
+
+        // 3. Create expediente
+        const expedienteRef = db.collection('expedientes').doc();
+
+        const now = new Date();
+        const logDate = now.toISOString().split('T')[0];
+        const logTime = now.toTimeString().split(' ')[0];
+        const userName = request.auth.token.name || 'Usuário desconhecido';
+
+        const expedienteData = {
+            id: expedienteRef.id,
+            organization_id: organizationId,
+            expediente_number: expedienteNumber,
+            system: data.system || '',
+            origin: data.origin || '',
+            entry_date: data.entryDate || null,
+            object: data.object || '',
+            status: status,
+            urgency_request: data.urgencyRequest || false,
+            distribution_date: data.distributionDate || null,
+            responsible_user_id: data.responsibleUserId || null,
+            responsible_user_name: data.responsibleUserName ? formatPersonName(data.responsibleUserName) : null,
+            analysis_start_date: data.analysisStartDate || null,
+            observations: data.observations || '',
+            review_submission_date: data.reviewSubmissionDate || null,
+            reviewed_date: data.reviewedDate || null,
+            review_return_date: data.reviewReturnDate || null,
+            archived_date: data.archivedDate || null,
+            network_folder: data.networkFolder || '',
+            created_by: userId,
+            created_at: admin.firestore.FieldValue.serverTimestamp(),
+            updated_at: admin.firestore.FieldValue.serverTimestamp(),
+            activity_log: [{
+                date: logDate,
+                time: logTime,
+                user_id: userId,
+                user_name: userName,
+                action: 'Expediente criado manualmente',
+                timestamp: now.toISOString(),
+            }],
+        };
+
+        await expedienteRef.set(expedienteData);
+
+        // Fase 3 (escrita dupla, ADITIVA): registra a entrada inicial na subcoleção
+        // expedientes/{id}/history. Best-effort: NUNCA falha a criação principal.
+        // ID determinístico => idempotente (não duplica; mantém paridade com o array).
+        try {
+            const createEntry = {
+                date: logDate,
+                time: logTime,
+                user_id: userId,
+                user_name: userName,
+                action: 'Expediente criado manualmente',
+                timestamp: now.toISOString(),
+            };
+            await expedienteRef.collection('history').doc(historyEntryId(createEntry)).set({
+                ...createEntry,
+                created_at: admin.firestore.FieldValue.serverTimestamp(),
+            });
+        } catch (histErr) {
+            console.error('[history dual-write] expediente create', expedienteRef.id, histErr);
+        }
+
+        // 4. Update stats
+        await db.collection('organizations').doc(organizationId).update({
+            'stats.expedientes_count': admin.firestore.FieldValue.increment(1),
+            'stats.active_expedientes': admin.firestore.FieldValue.increment(1)
+        });
+
+        // Webhooks de integração externa (flag `outbound_webhooks`).
+        if (data.urgencyRequest) {
+            await fireOrgWebhook(organizationId, 'urgent_created', {
+                entity_type: 'expediente',
+                entity_id: expedienteRef.id,
+                expediente_number: data.expedienteNumber,
+            });
+        }
+
+        // 5. Audit Log
+        await db.collection('auditLogs').add({
+            organization_id: organizationId,
+            user_id: userId,
+            user_name: request.auth.token.name || '',
+            action: 'CREATE_EXPEDIENTE',
+            details: { expediente_number: expedienteNumber, expediente_id: expedienteRef.id },
+            timestamp: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        return { success: true, expedienteId: expedienteRef.id };
+    }
+);

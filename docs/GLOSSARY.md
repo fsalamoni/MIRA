@@ -1,0 +1,684 @@
+# 📖 SIGO - Glossary
+
+**Version:** 1.2.0 - Final (Precision Rebranding)  
+**Last Updated:** 2026-02-12  
+**Purpose:** Complete terminology reference for developers and maintainers
+
+---
+
+## Table of Contents
+
+1. [General Terms](#general-terms)
+2. [Technical Terms](#technical-terms)
+3. [Firebase Terms](#firebase-terms)
+4. [React Terms](#react-terms)
+5. [Database Terms](#database-terms)
+6. [Security Terms](#security-terms)
+7. [UI/UX Terms](#uiux-terms)
+8. [Business Domain Terms](#business-domain-terms)
+
+---
+
+## General Terms
+
+### SIGO
+**Sistema Interno de Gestão Operacional**  
+Plataforma interna para gestão de processos, expedientes e parcerias do Centro de Apoio Operacional.
+
+### Processo
+A legal or administrative inquiry/case tracked in the system. Contains consultant information, dates, analysis notes, and workflow stages.
+
+### Consulente
+The person or entity that submitted the inquiry/process.
+
+### Assessor
+An analyst/advisor responsible for reviewing and processing inquiries.
+
+### Organização (Organization)
+A group/team of users collaborating on processes. Users can belong to multiple organizations.
+
+### Membro (Member)
+A user who belongs to an organization. Can have different roles (creator, admin, member).
+
+---
+
+## Technical Terms
+
+### SPA (Single Page Application)
+A web application that loads a single HTML page and dynamically updates content without full page reloads. CAOCIPP is an SPA.
+
+### CSR (Client-Side Rendering)
+Rendering approach where JavaScript runs in the browser to generate HTML. Used by CAOCIPP (via Vite + React).
+
+### SSR (Server-Side Rendering)
+Alternative rendering where HTML is generated on the server. NOT used in CAOCIPP.
+
+### PWA (Progressive Web App)
+Web apps that work offline and can be installed. Future enhancement for CAOCIPP.
+
+### JWT (JSON Web Token)
+Token format used by Firebase Auth for user authentication. Contains user ID and expiration.
+
+### OAuth 2.0
+Authentication protocol used for Google Sign-In. Industry standard for delegated authorization.
+
+### API (Application Programming Interface)
+Interface for communication between software components. CAOCIPP uses Firebase SDK as its primary API.
+
+### REST API
+Architectural style for networked applications. NOT used in CAOCIPP (uses Firebase SDK instead).
+
+### CDN (Content Delivery Network)
+Distributed network that serves static files quickly. Firebase Hosting includes a CDN.
+
+### HTTPS
+Secure HTTP protocol using TLS encryption. Required for all CAOCIPP traffic.
+
+### Environment Variable
+Configuration value stored outside code (in `.env` file). Used for Firebase credentials.
+
+---
+
+## Firebase Terms
+
+### Firebase
+Google's Backend-as-a-Service (BaaS) platform providing authentication, database, hosting, and more.
+
+### Firebase Project
+A container for Firebase services. CAOCIPP uses project ID: `protagonista-rpg`.
+
+### Firebase Authentication (Auth)
+Service managing user sign-in and identity. CAOCIPP uses Google Sign-In provider.
+
+### Firestore
+Firebase's NoSQL cloud database. Stores all CAOCIPP data (users, organizations, processes).
+
+### Firebase Hosting
+Static web hosting service with CDN. Deploys built CAOCIPP application.
+
+### Cloud Functions
+Serverless backend code execution. Placeholder created for future CAOCIPP features.
+
+### Firebase SDK
+JavaScript library for interacting with Firebase services. Current version: 10.14.1.
+
+### Security Rules
+Server-side rules validating Firestore read/write permissions. Written in a custom DSL.
+
+### Composite Index
+Database index on multiple fields for performant queries. CAOCIPP has 9 composite indexes.
+
+### serverTimestamp()
+Firebase function generating server-side timestamp. Prevents client clock manipulation.
+
+### onAuthStateChanged
+Firebase listener detecting user login/logout state changes.
+
+### Collection
+Top-level group of documents in Firestore. CAOCIPP has 5 collections.
+
+### Document
+Individual record in a Firestore collection. Has unique ID and key-value data.
+
+### Subcollection
+Collection nested under a document. NOT used in CAOCIPP (flat structure preferred).
+
+### Real-time Listener (onSnapshot)
+Firestore feature streaming live database updates to client.
+
+### Batch Write
+Atomic operation updating multiple documents simultaneously. Used for organizational stats.
+
+### increment()
+Firestore helper atomically increasing/decreasing numeric field.
+
+---
+
+## React Terms
+
+### Component
+Reusable UI building block. CAOCIPP has ~30 components.
+
+### JSX (JavaScript XML)
+Syntax extension allowing HTML-like code in JavaScript.
+
+```jsx
+<Button onClick={handleClick}>Click me</Button>
+```
+
+### Props (Properties)
+Data passed from parent component to child component.
+
+```jsx
+<ProcessControl organization={org} members={members} />
+```
+
+### State
+Component's internal data that can change over time. Managed with `useState`.
+
+```jsx
+const [isOpen, setIsOpen] = useState(false);
+```
+
+### Hook
+React function enabling state and lifecycle features in function components. Examples: `useState`, `useEffect`, custom hooks.
+
+### useEffect
+React hook for side effects (data fetching, subscriptions, timers).
+
+```jsx
+useEffect(() => {
+  // Fetch data
+}, [dependency]);
+```
+
+### useState
+React hook for managing component state.
+
+```jsx
+const [count, setCount] = useState(0);
+```
+
+### Context
+React pattern for sharing data across component tree without props drilling. CAOCIPP uses `FirebaseAuthContext`.
+
+### Provider
+Component wrapping children to provide Context value.
+
+```jsx
+<FirebaseAuthProvider>
+  <App />
+</FirebaseAuthProvider>
+```
+
+### Custom Hook
+Reusable hook extracting component logic. CAOCIPP has 5 custom hooks in `useFirestore.js`.
+
+### Ref (useRef)
+React hook for accessing DOM elements or persisting values across renders.
+
+###Controlled Component
+Form input whose value is controlled by React state.
+
+```jsx
+<Input value={value} onChange={e => setValue(e.target.value)} />
+```
+
+### Uncontrolled Component
+Form input managing its own state (not via React state). NOT used in CAOCIPP.
+
+---
+
+## Database Terms
+
+### NoSQL Database
+Non-relational database. Firestore is a NoSQL document database.
+
+### Document Database
+NoSQL database storing data as documents (JSON-like). Firestore's model.
+
+### Schema
+Structure/organization of database. Firestore is schema-less (flexible structure).
+
+### Query
+Request for data from database.
+
+```javascript
+query(collection(db, 'processes'), where('organization_id', '==', orgId))
+```
+
+### Filter (Where Clause)
+Condition limiting query results.
+
+```javascript
+where('urgency_request', '==', true)
+```
+
+### Index
+Data structure improving query performance. Required for Firestore compound queries.
+
+### Compound Query
+Query filtering on multiple fields. Requires composite index.
+
+```javascript
+where('organization_id', '==', orgId).where('status', '==', 'Em triagem')
+```
+
+### Denormalization
+Duplicating data for performance. CAOCIPP denormalizes `user_name` in processes.
+
+### Normalization
+Organizing data to reduce duplication. CAOCIPP is partially normalized.
+
+### Foreign Key
+Reference to document in another collection. CAOCIPP uses `organization_id` as foreign key.
+
+### Primary Key
+Unique identifier for document. Firestore auto-generates unless specified.
+
+### Composite Key
+Primary key combining multiple fields. CAOCIPP uses `{userId}_{orgId}` for memberships.
+
+### CRUD
+Create, Read, Update, Delete - basic database operations.
+
+### Transaction
+Atomic operation ensuring all-or-nothing execution. NOT currently used in CAOCIPP.
+
+### Batch Operation
+Multiple operations executed together. Used for stats updates in CAOCIPP.
+
+---
+
+## Security Terms
+
+### Authentication (AuthN)
+Verifying user identity ("who are you?"). Firebase Auth provides this.
+
+### Authorization (AuthZ)
+Determining user permissions ("what can you do?"). Firestore rules provide this.
+
+### Role-Based Access Control (RBAC)
+Authorization based on user's role. CAOCIPP uses creator/admin/member roles.
+
+### Principle of Least Privilege
+Users have minimum permissions needed. Applied in Firestore rules.
+
+### Defense in Depth
+Multiple security layers. CAOCIPP has client validation + Firestore rules.
+
+### XSS (Cross-Site Scripting)
+Attack injecting malicious scripts. React auto-escapes JSX preventing this.
+
+### CSRF (Cross-Site Request Forgery)
+Attack forcing authenticated users to submit unauthorized requests. Firebase prevents this.
+
+### TLS (Transport Layer Security)
+Cryptographic protocol securing network communication. HTTPS uses TLS.
+
+### Encryption at Rest
+Data encrypted when stored on disk. Firebase provides this by default.
+
+### Encryption in Transit
+Data encrypted during transmission. HTTPS provides this.
+
+### Session Hijacking
+Attack stealing user's session. Mitigated by HTTPS + short-lived tokens.
+
+### Threat Model
+Analysis of potential security threats. Documented in `SECURITY_REFERENCE.md`.
+
+### Security Rule
+Firestore configuration controlling data access.
+
+```javascript
+allow read: if isAuthenticated() && isMemberOf(orgId);
+```
+
+---
+
+## UIUX Terms
+
+### Responsive Design
+UI adapting to different screen sizes. CAOCIPP uses Tailwind breakpoints.
+
+### Breakpoint
+Screen width triggering layout change. CAOCIPP: mobile (<768px), tablet (768-1024px), desktop (>1024px).
+
+### Component Library
+Pre-built UI components. CAOCIPP uses Radix UI primitives.
+
+### Design System
+Standardized UI patterns and components. Documented in `DESIGN_SYSTEM_REFERENCE.md`.
+
+### Accessibility (a11y)
+Making UI usable by people with disabilities. Radix UI provides accessibility features.
+
+### Loading State
+UI shown while data is being fetched.
+
+```jsx
+{isLoading && <Loader2 className="animate-spin" />}
+```
+
+### Error State
+UI shown when operation fails.
+
+```jsx
+{error && <Alert variant="destructive">{error}</Alert>}
+```
+
+### Toast Notification
+Temporary popup message. CAOCIPP uses Sonner library.
+
+### Modal/Dialog
+Overlay window requiring user interaction. Used for forms in CAOCIPP.
+
+### Form Validation
+Checking user input meets requirements. Implemented in CAOCIPP dialogs.
+
+### Placeholder
+Temporary content shown before real data loads.
+
+### Skeleton Screen
+Placeholder mimicking final content's shape. NOT currently used in CAOCIPP.
+
+---
+
+## Business Domain Terms
+
+### Processo Administrativo
+Administrative process/inquiry requiring analysis and decision.
+
+### Consulta
+Inquiry or consultation request submitted to CAOCIPP.
+
+### Objeto da Consulta
+Subject matter and purpose of the inquiry (free text).
+
+### Matéria da Consulta
+Categorization of the inquiry into General (e.g., Cível) and Specific (e.g., Família) topics.
+
+### Local dos Fatos
+City/location where the matter occurred.
+
+### Pedido de Urgência
+Urgent request flag for priority handling.
+
+### Distribuição
+Assignment of process to specific advisor (assessor).
+
+### Análise
+Review and examination of the inquiry by assigned advisor.
+
+### Revisão
+Secondary review by supervisor or senior analyst.
+
+### Arquivamento
+Archiving/finalizing the process after completion.
+
+### Restrição de Acesso
+Access restriction limiting visibility to authorized users only.
+
+### Pasta da Rede
+Network folder storing physical/digital documents related to process.
+
+### Status do Processo
+Current stage of the process (em triagem, em elaboração, na pasta, etc.).
+
+### Triagem
+Initial sorting/classification of incoming processes.
+
+### Em Elaboração
+Process being actively analyzed and written up.
+
+### Em Revisão
+Process under review by supervisor.
+
+### Para Revisão
+Process ready to be sent for review.
+
+### Na Pasta
+Process completed and archived.
+
+### Decisão
+Final decision or conclusion on the inquiry.
+
+### Observações
+Notes and important points recorded during analysis.
+
+---
+
+## Módulo Parcerias (v1.16.0)
+
+### Parceria
+Convênio, Termo de Cooperação ou Termo de Fomento firmado entre o MP/RS e outro ente. Entidade de primeiro nível na coleção `parcerias/`. Tem 7 fases (ordem canônica em `PARCERIA_VALID_STATUSES`): Pendente, Em análise, Em revisão, Revisadas, Aguarda Terceiros, Parcerias, Extintos.
+
+### PGEA
+Número do "Procedimento de Gestão Estratégica e Administrativa" — identificador único da Parceria no órgão. Equivalente ao número de processo das Consultas. Pode ser gerado automaticamente pelo MP (formato livre).
+
+### Tipo de Parceria
+Classificação jurídica: **Convênio**, **Termo de Cooperação** ou **Termo de Fomento**. Configurável por órgão (lista customizável em `parceriaSettings.tipos`).
+
+### Configurações do módulo de Parcerias (por órgão)
+O objeto `parceriaSettings` no documento da organização guarda:
+- `tipos`: tipos de Parceria aceitos (default: Convênio, Termo de Cooperação, Termo de Fomento).
+- `aditivoTipos`: tipos de Aditivo aceitos (default: Prazo, Valor, Alteração, Reequilíbrio, Execução).
+- `vigenciaOptions`: opções pré-definidas de vigência (default: 6, 12, 24, 36, 60 meses, Indeterminado). O usuário pode digitar valor livre; o sistema oferece como autocomplete.
+- `categorias`: tags opcionais para classificar Parcerias (ex.: Saúde, Educação). Lista vazia = campo não exibido.
+- `thirdPartyPhaseEnabled` (default true): liga/desliga a coluna "Aguarda Terceiros" no Kanban. Quando desligada, parcerias vão direto de "Revisão" para "Parcerias".
+- `autoExtinguishOnEnd` (default false): preferência por extinguir Parcerias automaticamente quando passam a data final. Lógica de execução é feita por Cloud Function.
+
+A lista de terceiros fica em `thirdPartiesSettingsParcerias` (mesmo padrão de Consultas/Expedientes, com permissão `configure_parcerias` separada).
+
+### Vigência
+Período de validade da Parceria (ex.: "12 meses", "2 anos"). Campo texto livre; o sistema calcula o termo final a partir da data de assinatura quando cabível.
+
+### Termo Final
+Data de encerramento da Parceria. Quando a data atual passa do termo final e a Parceria não foi extinta, o sistema recomenda a criação de um aditivo (renovação).
+
+### Aviso de Renovação
+Data sugerida para início do processo de renovação. Usado para alertas de prazo no calendário de vencimentos. É calculada automaticamente a partir do **Termo Final MENOS o período de aviso** (`renewal_notice_period` + unidade) — o aviso acontece *antes* do fim da vigência. O cálculo é feito no modal de edição (`calculateRenewalNoticeDate`) e espelhado no backend (`updateParceria`, `concludeAditivo`, `checkPartnershipNoticeDeadlines`). Editar a data à mão desliga o recálculo automático até que o período mude.
+
+### Aditivo
+Documento complementar à Parceria original. Pode ser **Renovação/Prorrogação** (estende a vigência) ou **Qualitativo (Objeto)** (altera o objeto sem mudar prazo). Vive em subcoleção `parcerias/{id}/aditivos/{addId}`. Cada Parceria pode ter N aditivos.
+
+### Aditivo de Renovação/Prorrogação
+Tipo de aditivo que renova ou estende a vigência da Parceria. Mantém os mesmos campos de formalização (tipo, número, vigência, termo final).
+
+### Aditivo Qualitativo
+Tipo de aditivo que altera o **objeto** da Parceria sem necessariamente mudar a vigência. Usado para aditivos que modificam escopo.
+
+### Extinção
+Ação terminal que marca a Parceria como finda sem renovação. Requer confirmação textual (digitar "EXTINGUIR") e cascateia para todos os aditivos. Diferente de "arquivamento" de Consultas/Expedientes — é uma decisão consciente de NÃO renovar.
+
+### Aditivo corrente
+O aditivo que está sendo processado no momento (`parceria.current_additive_id`). Quando uma Parceria tem aditivos, o Kanban mostra o status do aditivo corrente, não do original.
+
+### Lock de campos
+Quando uma Parceria tem 1+ aditivos, os campos do documento original (PGEA, assunto, objeto, partes, partnership_type, partnership_number, signature_date, validity_period, end_date, renewal_notice_date) ficam **read-only**. Edições subsequentes vão para o aditivo corrente. O backend (Cloud Function `updateParceria`) recusa mudanças nesses campos quando `aditivo_count > 0`.
+
+O lock vale para a *substância* da Parceria, não para a **fase**: com um aditivo em andamento (`current_additive_id` preenchido), o seletor de status do modal move o **aditivo corrente** (o backend espelha a fase de volta na Parceria pai); sem aditivo em andamento (o último já concluído), o modal move a própria Parceria enviando apenas os campos de fase (`PHASE_ONLY_FIELDS` em `EditParceriaDialog`).
+
+---
+
+## Acronyms Quick Reference
+
+| Acronym | Full Term | Category |
+|---------|-----------|----------|
+| **SIGO** | Sistema Interno de Gestão Operacional | Business |
+| **SPA** | Single Page Application | Technical |
+| **CSR** | Client-Side Rendering | Technical |
+| **SSR** | Server-Side Rendering | Technical |
+| **PWA** | Progressive Web App | Technical |
+| **API** | Application Programming Interface | Technical |
+| **CDN** | Content Delivery Network | Technical |
+| **JWT** | JSON Web Token | Security |
+| **OAuth** | Open Authorization | Security |
+| **HTTPS** | Hypertext Transfer Protocol Secure | Security |
+| **Auth** | Authentication | Firebase |
+| **AuthN** | Authentication | Security |
+| **AuthZ** | Authorization | Security |
+| **RBAC** | Role-Based Access Control | Security |
+| **XSS** | Cross-Site Scripting | Security |
+| **CSRF** | Cross-Site Request Forgery | Security |
+| **TLS** | Transport Layer Security | Security |
+| **CRUD** | Create, Read, Update, Delete | Database |
+| **NoSQL** | Not Only SQL | Database |
+| **JSX** | JavaScript XML | React |
+| **UI** | User Interface | UI/UX |
+| **UX** | User Experience | UI/UX |
+| **a11y** | Accessibility (11 letters between a and y) | UI/UX |
+| **KPI** | Key Performance Indicator | Analytics |
+
+---
+
+## File Extensions
+
+| Extension | Description | Example |
+|-----------|-------------|---------|
+| `.jsx` | JavaScript with JSX syntax (React components) | `Dashboard.jsx` |
+| `.js` | Plain JavaScript | `firebase.js` |
+| `.json` | JSON data/configuration file | `package.json` |
+| `.md` | Markdown documentation | `README.md` |
+| `.css` | Cascading Style Sheets | `index.css` |
+| `.html` | HTML markup | `index.html` |
+| `.env` | Environment variables | `.env` |
+| `.rules` | Firebase Security Rules | `firestore.rules` |
+| `.config.js` | Configuration file | `vite.config.js` |
+
+---
+
+## Common Patterns
+
+### Snake_Case
+Lowercase words separated by underscores.  
+**Used for:** Firestore field names  
+**Example:** `organization_id`, `created_at`, `responsible_user_id`
+
+### camelCase
+Lowercase first word, capitalized subsequent words.  
+**Used for:** JavaScript variables, functions  
+**Example:** `createProcess`, `isLoading`, `organizationId`
+
+### PascalCase
+All words capitalized.  
+**Used for:** React components, classes  
+**Example:** `Dashboard`, `ProcessControl`, `FirebaseAuthContext`
+
+### SCREAMING_SNAKE_CASE
+Uppercase words separated by underscores.  
+**Used for:** Constants  
+**Example:** `VITE_FIREBASE_API_KEY`, `MAX_FILE_SIZE`
+
+### kebab-case
+Lowercase words separated by hyphens.  
+**Used for:** URLs, CSS classes, file names (sometimes)  
+**Example:** `process-control`, `btn-primary`
+
+---
+
+## Conclusion
+
+This glossary provides definitions for **150+ terms** across 8 categories:
+- General (15 terms)
+- Technical (20 terms)
+- Firebase (25 terms)
+- React (20 terms)
+- Database (20 terms)
+- Security (15 terms)
+- UI/UX (15 terms)
+- Business Domain (25 terms)
+
+## Módulo Jurimetria (flag `jurimetria_enabled`)
+
+Documentação completa em `JURIMETRIA.md`.
+
+### Júri
+Sessão do Tribunal do Júri registrada na base do órgão. Entidade de primeiro nível na coleção `juris/`. Diferente de Consultas/Expedientes/Parcerias, **não tem fases de fluxo**: o eixo natural de análise é a espécie de resultado.
+
+### Número do processo (chave natural)
+O número CNJ do júri é a chave do registro dentro do órgão. É guardado duas vezes: `numero_processo` (como digitado) e `numero_processo_norm` (só os dígitos). A comparação é sempre pelo normalizado — é o que torna a importação idempotente e impede cadastro duplicado.
+
+### Espécie de resultado
+Desfecho do julgamento (PROCEDÊNCIA, IMPROCEDÊNCIA, DESCLASSIFICAÇÃO, DISSOLUÇÃO etc.). Lista configurável por órgão em `jurimetriaSettings.resultados`; 9 espécies canônicas por padrão.
+
+### Matéria / Tipo de júri
+Classificação do caso, gravada pela **sigla** (CM, CP, D, F, FC, PP, T por padrão). A importação reconhece a sigla, a descrição ou as duas juntas ("FC — FATOS DO COTIDIANO").
+
+### Horário de início e de conclusão
+Dois campos: `horario_inicio` e `horario`. O `horario` sempre significou o horário em que a sessão **terminou** — é o que as planilhas do CAOJúri registravam —, e o rótulo passou a dizer isso. A diferença entre os dois é a **duração**.
+
+### Duração da sessão
+`horario − horario_inicio`, em minutos. Vale `null` — nunca zero — quando falta um dos dois: "durou 0 minuto" e "não sabemos quanto durou" são coisas diferentes, e só a primeira entra numa média. Os relatórios sempre dizem sobre quantos júris a média foi calculada. Uma sessão que termina de madrugada é lida como tendo virado o dia.
+
+### Expediente (janela do órgão)
+Faixa de horário (padrão 12h às 19h), dias da semana e feriados que definem quando o órgão funciona, configuráveis em *Painel Administrativo → Jurimetria → Expediente*. Os feriados nacionais entram automaticamente, inclusive os móveis derivados da Páscoa (Carnaval, Sexta-feira Santa, Corpus Christi). Classifica cada sessão em: dentro, prolongou, antecipou, dia sem expediente ou horário não informado. É informação de gestão — escala, sobreaviso, carga do plenário —, não de mérito.
+
+### Cor da espécie de resultado
+Cor de fundo da etiqueta de cada espécie, editável por órgão. Vale na tabela, na ficha, nos relatórios e no gráfico de espécies. O administrador escolhe uma cor; texto, borda e a variante de tema escuro são calculados a partir dela, de modo que qualquer escolha continue legível.
+
+### Modelo de relatório dinâmico
+Desenho salvo de uma tabela dinâmica ou de um relatório descritivo (`jurimetriaTemplates`). É do **órgão**: qualquer membro aplica qualquer modelo, mas só quem criou — ou quem tem `configure_jurimetria` — pode editar ou excluir. Antes ficava no `localStorage` de cada navegador.
+
+### Realização (da sessão)
+Se a sessão **aconteceu**: `realizado`, `redesignado` (remarcada para nova data) ou `cancelado` (sem nova data). É um plano anterior ao da espécie de resultado, que diz o que o julgamento produziu. Por padrão, painel e relatórios contam **apenas as realizadas** — os demais continuam na base e na tabela. Júri gravado antes do campo é lido como `realizado`.
+
+### Histórico de datas (`date_history`)
+Registro, dentro do próprio júri, de toda alteração da data da sessão: data anterior, nova data, realização que a motivou, justificativa, autor e momento. Gerado por qualquer caminho que mude a data (edição, redesignação, cancelamento, correção em massa, importação). Visível na ficha do júri e no modal de edição.
+
+### Opções de análise
+Como o recorte é **contado**, em oposição aos filtros, que definem o que **entra** no recorte: "somente sessões realizadas" (ligada por padrão) e "ignorar (não informado)". Valem no Painel, nos Relatórios e nos Relatórios dinâmicos; nunca escondem um registro da tabela de júris. Ficam gravadas por órgão no navegador e a legenda dos documentos exportados declara o critério usado.
+
+### Atualização (importação)
+Linha cujo processo **já existe** no órgão e cuja planilha preenche campos que estavam **vazios** no banco. É ganho puro de informação: aplica-se sob qualquer política, ao contrário do *conflito*, em que a planilha traz valor diferente de um já gravado.
+
+### Dissolução
+Sessão desfeita sem julgamento de mérito (conselho dissolvido). **Conta no total** de júris do período, mas **fica fora** do cálculo de espécies, matérias e aproveitamento. Quais espécies são tratadas assim é configurável (`dissolucaoResultados`); marcá-las fixa o peso em 0.
+
+### Júris efetivos
+Total de júris menos os dissolvidos. É o denominador de todos os percentuais de espécie e do aproveitamento.
+
+### Aproveitamento (ponderado)
+`Σ peso[resultado] / nº de júris efetivos`. Cada espécie tem um peso de 0 a 1 na tabela de pontuação do órgão (`jurimetriaSettings.pontuacao`). Sem efetivos, o resultado é `null` (exibido como "—"), que é diferente de 0%.
+
+### Tabela de pontuação
+Mapa espécie → peso (0 a 1), editável em *Painel Administrativo → Jurimetria → Pontuação*. Alterá-la recalcula todos os relatórios na hora, sem tocar em nenhum júri gravado.
+
+### Colunas do órgão (Jurimetria)
+Campos próprios criados pelo admin além dos nativos (`jurimetriaSettings.customFields`). Os valores ficam em `juris/{id}.values`. Aparecem no cadastro, na tabela, nas exportações, como dimensão nos relatórios dinâmicos, e a importação passa a reconhecer colunas da planilha com o mesmo nome.
+
+### Política de importação
+O que fazer quando o mesmo processo chega com dados **divergentes**: `preserve` (padrão — o banco vence, a divergência só é listada) ou `update` (a planilha vence, campo a campo, com registro no histórico). Não se aplica às *atualizações* (lacunas preenchidas), que valem em qualquer política. Célula vazia na planilha nunca apaga dado gravado.
+
+### Rigor da correção automática (`fuzzyThreshold`)
+Similaridade mínima (0,4 a 1) para a importação corrigir um valor para a lista oficial do órgão — ex.: "PORTO ALEGRE" → "Porto Alegre (0001)". Em 1, só a grafia exata é aceita.
+
+## Módulo Panorama (flag `panorama_enabled`)
+
+Documentação completa em `PANORAMA.md`.
+
+### Base (Panorama)
+Conjunto analítico de um órgão, em `panoramaBases/`. Diferente de todos os outros módulos, **o esquema não é fixo**: as colunas da base vêm da planilha importada. Um órgão tem quantas bases quiser, cada uma com suas colunas, seus pesos e sua regra de prescrição.
+
+### Papel semântico
+O significado que o órgão atribui a uma coluna sua. É a ideia central do módulo: a Jurimetria pergunta "qual é a comarca?" e por isso só serve ao júri; o Panorama pergunta "qual coluna faz o **papel** de unidade territorial?" — e aí serve a qualquer matéria. São dez: `identificador`, `data_principal`, `data_referencia`, `unidade`, `responsavel`, `assunto`, `desfecho`, `situacao`, `valor`, `prazo`. Nenhum é obrigatório; cada um destrava um conjunto de análises, e o que não foi mapeado simplesmente não aparece na tela.
+
+### Inferência de colunas
+Leitura automática da planilha que mede cada coluna (tipo, quantos distintos, quantos vazios, amostra) e propõe um papel combinando **nome** e **conteúdo**. É proposta, não decisão: a tela de mapeamento existe para o órgão corrigir. Mora em `functions-v2/src/shared/panorama.ts`.
+
+### Dimensão derivada
+Eixo de análise que não é coluna: `__mes`, `__ano`, `__trimestre` (existem quando há data principal), `__regiao` (quando há regiões definidas) e `__prescricao` (quando a prescrição está ligada).
+
+### Desfecho sem mérito (`desfechos.neutros`)
+Desfecho que o órgão marcou como não sendo solução de mérito — declínio de atribuição, arquivamento por ilegitimidade. Conta no total de casos e fica **fora** do cálculo de efetividade. É o análogo genérico da dissolução na Jurimetria, mas definido por cada órgão, não pelo código.
+
+### Região (Panorama)
+Agrupamento nomeado de unidades territoriais (`base.regioes`), montado pelo órgão no painel administrativo. Uma unidade pertence a uma única região. Qual comarca está em qual região é decisão do órgão — não há como deduzir do dado.
+
+### Prescrição (Panorama)
+Três modos: `desligado`; `coluna` (a planilha já traz a data-limite); ou `prazo` (calculada a partir de um prazo em anos, com prazo padrão e prazos por assunto, contando da data principal ou da data de referência). As faixas de alerta em dias definem o que é crítico, em alerta e atenção. Os prazos são definição jurídica do órgão, não dado inferível.
+
+### Gargalo (Panorama)
+Acúmulo de registros na mesma `situacao`, com idade média, mediana e o mais antigo. Responde ao que o painel não mostra sozinho: não "quantos casos existem", e sim "quantos estão parados na mesma etapa, e há quanto tempo".
+
+### Concentração (Panorama)
+Quanto do volume está nas primeiras posições de uma dimensão: top 3, top 10 e quantos grupos são precisos para chegar à metade. É a leitura que separa "força-tarefa em três comarcas resolve" de "o problema é estrutural e está espalhado".
+
+### Modelo de relatório (Panorama)
+Desenho salvo de tabela dinâmica ou de relatório descritivo (`panoramaTemplates`), por base. Todo o órgão usa os modelos de todos; só o autor e quem tem `configure_panorama` edita ou exclui — verificado no servidor.
+
+---
+
+Use this as a quick reference when:
+- ✅ Onboarding new developers
+- ✅ Understanding codebase terminology
+- ✅ Writing documentation
+- ✅ Communicating with stakeholders
+
+For context on how terms are used:
+- Architecture → `ARCHITECTURE_REFERENCE.md`
+- Security → `SECURITY_REFERENCE.md`
+- Features → `FEATURES_REFERENCE.md`
+- Jurimetria → `JURIMETRIA.md`
+- Panorama → `PANORAMA.md`

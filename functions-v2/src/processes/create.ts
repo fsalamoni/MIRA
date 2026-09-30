@@ -1,0 +1,162 @@
+import * as admin from 'firebase-admin';
+import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { calculateStatus } from '../shared/status';
+import { formatPersonName } from '../shared/normalization';
+import { historyEntryId } from '../shared/history';
+import { fireOrgWebhook } from '../shared/webhooks';
+
+interface CreateProcessRequest {
+    organizationId: string;
+    processNumber: string;
+    consultant: string;
+    location: string;
+    entryDate: string;
+    matterObject: string;
+    matterCategory?: string;
+    matterSubcategory?: string;
+    urgencyRequest: boolean;
+    responsibleUserId: string;
+    responsibleUserName: string;
+    distributionDate?: string;
+    analysisStartDate?: string;
+    observations?: string;
+    reviewSubmissionDate?: string;
+    reviewedDate?: string;
+    reviewReturnDate?: string;
+    accessRestriction?: boolean;
+    archivedDate?: string;
+    networkFolder?: string;
+    decision?: string;
+}
+
+export const createProcess = onCall<CreateProcessRequest>(
+    { region: 'southamerica-east1' },
+    async (request) => {
+        if (!request.auth) {
+            throw new HttpsError('unauthenticated', 'Authenticated user required');
+        }
+
+        const data = request.data;
+        const { organizationId, processNumber, consultant } = data;
+
+        if (!organizationId || !processNumber || !consultant) {
+            throw new HttpsError('invalid-argument', 'Missing required fields');
+        }
+
+        const db = admin.firestore();
+        const userId = request.auth.uid;
+
+        // 1. Verify membership
+        const membershipRef = db.collection('userOrganizations').doc(`${userId}_${organizationId}`);
+        const membershipSnap = await membershipRef.get();
+        if (!membershipSnap.exists) {
+            throw new HttpsError('permission-denied', 'You are not a member of this organization');
+        }
+
+        // 2. Initial status logic - Calculate based on provide dates
+        const status = calculateStatus({
+            entry_date: data.entryDate,
+            distribution_date: data.distributionDate,
+            analysis_start_date: data.analysisStartDate,
+            review_submission_date: data.reviewSubmissionDate,
+            reviewed_date: data.reviewedDate,
+            review_return_date: data.reviewReturnDate,
+            archived_date: data.archivedDate
+        });
+
+        // 3. Create process
+        const processRef = db.collection('processes').doc();
+
+        const now = new Date();
+        const logDate = now.toISOString().split('T')[0];
+        const logTime = now.toTimeString().split(' ')[0];
+        const userName = request.auth.token.name || 'Usuário desconhecido';
+
+        const processData = {
+            id: processRef.id,
+            organization_id: organizationId,
+            process_number: processNumber,
+            consultant: consultant,
+            location: data.location || '',
+            entry_date: data.entryDate || null,
+            matter_object: data.matterObject || '',
+            matter_category: data.matterCategory || '',
+            matter_subcategory: data.matterSubcategory || '',
+            status: status,
+            urgency_request: data.urgencyRequest || false,
+            distribution_date: data.distributionDate || null,
+            responsible_user_id: data.responsibleUserId || null,
+            responsible_user_name: data.responsibleUserName ? formatPersonName(data.responsibleUserName) : null,
+            analysis_start_date: data.analysisStartDate || null,
+            observations: data.observations || '',
+            review_submission_date: data.reviewSubmissionDate || null,
+            reviewed_date: data.reviewedDate || null,
+            review_return_date: data.reviewReturnDate || null,
+            access_restriction: data.accessRestriction || false,
+            archived_date: data.archivedDate || null,
+            network_folder: data.networkFolder || '',
+            decision: data.decision || '',
+            created_by: userId,
+            created_at: admin.firestore.FieldValue.serverTimestamp(),
+            updated_at: admin.firestore.FieldValue.serverTimestamp(),
+            activity_log: [{
+                date: logDate,
+                time: logTime,
+                user_id: userId,
+                user_name: userName,
+                action: 'Processo criado manualmente',
+                timestamp: now.toISOString(),
+            }],
+        };
+
+        await processRef.set(processData);
+
+        // Fase 3 (escrita dupla, ADITIVA): registra a entrada inicial na subcoleção
+        // processes/{id}/history. Best-effort: NUNCA falha a criação principal.
+        // ID determinístico => idempotente (não duplica; mantém paridade com o array).
+        try {
+            const createEntry = {
+                date: logDate,
+                time: logTime,
+                user_id: userId,
+                user_name: userName,
+                action: 'Processo criado manualmente',
+                timestamp: now.toISOString(),
+            };
+            await processRef.collection('history').doc(historyEntryId(createEntry)).set({
+                ...createEntry,
+                created_at: admin.firestore.FieldValue.serverTimestamp(),
+            });
+        } catch (histErr) {
+            console.error('[history dual-write] process create', processRef.id, histErr);
+        }
+
+        // 4. Update stats
+        await db.collection('organizations').doc(organizationId).update({
+            'stats.processes_count': admin.firestore.FieldValue.increment(1),
+            'stats.active_processes': admin.firestore.FieldValue.increment(1)
+        });
+
+        // Webhooks de integração externa (flag `outbound_webhooks`).
+        if (data.urgencyRequest) {
+            await fireOrgWebhook(organizationId, 'urgent_created', {
+                entity_type: 'process',
+                entity_id: processRef.id,
+                process_number: processNumber,
+                consultant,
+            });
+        }
+
+        // 5. Audit Log
+        await db.collection('auditLogs').add({
+            organization_id: organizationId,
+            user_id: userId,
+            user_name: request.auth.token.name || '',
+            action: 'CREATE_PROCESS',
+            details: { process_number: processNumber, process_id: processRef.id },
+            timestamp: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        return { success: true, processId: processRef.id };
+    }
+);

@@ -1,0 +1,673 @@
+import React, { useState, useMemo } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  MapPin,
+  Clock,
+  Target,
+  AlertCircle,
+  FileText,
+  CalendarDays,
+  ChevronDown,
+  ArrowUp,
+  ArrowDown,
+  Minus
+} from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { isValid } from 'date-fns';
+import { statusConfig, DEFAULT_STATUS_CONFIG } from '@/config/processStatus';
+import TemporalMetrics from './TemporalMetrics';
+import { calculateBusinessDays, parseLocalDate } from '@/lib/dateUtils';
+import { useFlag } from '@/lib/FeatureFlagsContext';
+import { FEATURE_FLAGS } from '@/constants/featureFlags';
+import { cn } from '@/lib/utils';
+import MinimalBarList from '@/components/ui/MinimalBarList';
+
+// V2 (design minimalista): ícone de KPI em cor sólida em vez do gradiente do V1.
+const V2_ICON_COLOR = {
+  'from-indigo-500 to-violet-500': 'bg-primary',
+  'from-emerald-500 to-teal-500': 'bg-emerald-600',
+  'from-blue-500 to-cyan-500': 'bg-sky-600',
+  'from-red-500 to-rose-500': 'bg-red-600',
+};
+
+// Aceita boolean true ou strings legadas de import ('Sim'/'sim') — mesma
+// tolerância usada em isProcessUrgent/isExpedienteUrgent. Usada aqui em vez
+// delas porque summarizePeriod recebe tanto processos quanto expedientes
+// (não dá para saber de antemão qual resolvedor de alias usar).
+function isUrgentValue(value) {
+  return value === true || String(value ?? '').toLowerCase().trim() === 'sim';
+}
+
+export default function IntelligentSummary({ processes = [], members, expedientes = [], parcerias = [] }) {
+  const isV2 = useFlag(FEATURE_FLAGS.FRONTEND_V2.key);
+  const isPeriodComparisonOn = useFlag(FEATURE_FLAGS.PERIOD_COMPARISON.key);
+  const currentYear = new Date().getFullYear();
+  const [selectedYear, setSelectedYear] = useState(currentYear);
+  const [selectedMonth, setSelectedMonth] = useState('all'); // 'all' or 0-11
+
+  const PT_MONTHS = [
+    "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+    "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+  ];
+
+  // Available years for filter
+  const years = useMemo(() => {
+    const yearsSet = new Set([currentYear]);
+    processes.forEach(p => {
+      const date = parseLocalDate(p.entry_date);
+      const year = isValid(date) ? date.getFullYear() : null;
+      if (year && !isNaN(year)) yearsSet.add(year);
+    });
+    expedientes.forEach(e => {
+      const date = parseLocalDate(e.entry_date);
+      const year = isValid(date) ? date.getFullYear() : null;
+      if (year && !isNaN(year)) yearsSet.add(year);
+    });
+    return Array.from(yearsSet).sort((a, b) => b - a);
+  }, [processes, expedientes, currentYear]);
+
+  // Filter processes by selected period
+  const filteredProcesses = useMemo(() => {
+    return processes.filter(p => {
+      const date = parseLocalDate(p.entry_date);
+      if (!isValid(date)) return false;
+      const yearMatch = date.getFullYear() === selectedYear;
+      const monthMatch = selectedMonth === 'all' || date.getMonth() === Number(selectedMonth);
+      return yearMatch && monthMatch;
+    });
+  }, [processes, selectedYear, selectedMonth]);
+
+  // Calcular métricas — tudo memoizado sobre `filteredProcesses` (que já é
+  // memoizado): sem isto, cada linha abaixo (incluindo calculateBusinessDays,
+  // que percorre dia a dia) recalculava do zero a cada re-render do
+  // componente, mesmo sem os dados terem mudado (ex.: um toggle de UI não
+  // relacionado, ou o novo cálculo de comparação de períodos duplicando o
+  // trabalho por cima).
+  const {
+    totalProcesses, finishedProcesses, urgentProcesses, completionRate,
+    avgTotalTime, avgAnalysisTime, avgReviewStageTime,
+    locationData, statusCounts, noStatusCount,
+  } = useMemo(() => {
+    const total = filteredProcesses.length;
+    // 'Na pasta' is the finished status in config
+    const finished = filteredProcesses.filter(p => p.status === 'Na pasta').length;
+    const urgent = filteredProcesses.filter(p => isUrgentValue(p.urgency_request) && p.status !== 'Na pasta').length;
+    const rate = total > 0 ? ((finished / total) * 100).toFixed(1) : 0;
+
+    // 1. Tempo total médio (Entrada -> Devolução após Revisão)
+    const totalTimeData = filteredProcesses.filter(p => p.entry_date && p.review_return_date);
+    const totalTime = totalTimeData.length > 0
+      ? Math.ceil(totalTimeData.reduce((acc, p) => acc + calculateBusinessDays(p.entry_date, p.review_return_date), 0) / totalTimeData.length)
+      : 0;
+
+    // 2. Tempo médio para análise de consultas (Distribuição -> Remessa p/ Revisão)
+    const analysisTimeData = filteredProcesses.filter(p => p.distribution_date && p.review_submission_date);
+    const analysisTime = analysisTimeData.length > 0
+      ? Math.ceil(analysisTimeData.reduce((acc, p) => acc + calculateBusinessDays(p.distribution_date, p.review_submission_date), 0) / analysisTimeData.length)
+      : 0;
+
+    // 3. Tempo médio para revisão de minutas (Remessa p/ Revisão -> Devolução após Revisão)
+    const reviewTimeData = filteredProcesses.filter(p => p.review_submission_date && p.review_return_date);
+    const reviewTime = reviewTimeData.length > 0
+      ? Math.ceil(reviewTimeData.reduce((acc, p) => acc + calculateBusinessDays(p.review_submission_date, p.review_return_date), 0) / reviewTimeData.length)
+      : 0;
+
+    // Processos por localidade (top 10)
+    const processesPerLocation = {};
+    filteredProcesses.forEach(p => {
+      const location = p.location || 'Não informado';
+      processesPerLocation[location] = (processesPerLocation[location] || 0) + 1;
+    });
+    const location = Object.entries(processesPerLocation)
+      .map(([name, count]) => ({ name, processos: count }))
+      .sort((a, b) => b.processos - a.processos)
+      .slice(0, 10);
+
+    // Processos por status (Dynamic based on Config)
+    // Initialize counts for all configured statuses to 0
+    const counts = {};
+    Object.keys(statusConfig).forEach(status => {
+      counts[status] = 0;
+    });
+    // Also track 'Sem Status' or others
+    let noStatus = 0;
+
+    filteredProcesses.forEach(p => {
+      if (!p.status) {
+        noStatus++;
+      } else if (counts.hasOwnProperty(p.status)) {
+        counts[p.status]++;
+      } else {
+        // If status is not in config, add it dynamically or group it?
+        // Grouping under 'Outros' or adding dynamic key
+        counts[p.status] = (counts[p.status] || 0) + 1;
+      }
+    });
+
+    return {
+      totalProcesses: total,
+      finishedProcesses: finished,
+      urgentProcesses: urgent,
+      completionRate: rate,
+      avgTotalTime: totalTime,
+      avgAnalysisTime: analysisTime,
+      avgReviewStageTime: reviewTime,
+      locationData: location,
+      statusCounts: counts,
+      noStatusCount: noStatus,
+    };
+  }, [filteredProcesses]);
+
+  // ========== EXPEDIENTES METRICS ==========
+  const filteredExpedientes = useMemo(() => {
+    return expedientes.filter(p => {
+      const date = parseLocalDate(p.entry_date);
+      if (!isValid(date)) return false;
+      const yearMatch = date.getFullYear() === selectedYear;
+      const monthMatch = selectedMonth === 'all' || date.getMonth() === Number(selectedMonth);
+      return yearMatch && monthMatch;
+    });
+  }, [expedientes, selectedYear, selectedMonth]);
+
+  const {
+    totalExpedientes, finishedExpedientes, urgentExpedientes, expCompletionRate,
+    expAvgTotalTime, expAvgAnalysisTime, expAvgReviewStageTime,
+    originData, expStatusCounts, expNoStatusCount,
+  } = useMemo(() => {
+    const total = filteredExpedientes.length;
+    // 'Na pasta' is the finished status in config
+    const finished = filteredExpedientes.filter(p => p.status === 'Na pasta').length;
+    const urgent = filteredExpedientes.filter(p => isUrgentValue(p.urgency_request) && p.status !== 'Na pasta').length;
+    const rate = total > 0 ? ((finished / total) * 100).toFixed(1) : 0;
+
+    // 1. Tempo total médio Expediente (Entrada -> Devolução após Revisão)
+    const totalTimeData = filteredExpedientes.filter(p => p.entry_date && p.review_return_date);
+    const totalTime = totalTimeData.length > 0
+      ? Math.ceil(totalTimeData.reduce((acc, p) => acc + calculateBusinessDays(p.entry_date, p.review_return_date), 0) / totalTimeData.length)
+      : 0;
+
+    // 2. Tempo médio análise Expediente (Distribuição -> Remessa p/ Revisão)
+    const analysisTimeData = filteredExpedientes.filter(p => p.distribution_date && p.review_submission_date);
+    const analysisTime = analysisTimeData.length > 0
+      ? Math.ceil(analysisTimeData.reduce((acc, p) => acc + calculateBusinessDays(p.distribution_date, p.review_submission_date), 0) / analysisTimeData.length)
+      : 0;
+
+    // 3. Tempo médio revisão Expediente (Remessa p/ Revisão -> Devolução após Revisão)
+    const reviewTimeData = filteredExpedientes.filter(p => p.review_submission_date && p.review_return_date);
+    const reviewTime = reviewTimeData.length > 0
+      ? Math.ceil(reviewTimeData.reduce((acc, p) => acc + calculateBusinessDays(p.review_submission_date, p.review_return_date), 0) / reviewTimeData.length)
+      : 0;
+
+    // Expedientes por Origem (top 10)
+    const expedientesPerOrigin = {};
+    filteredExpedientes.forEach(p => {
+      const origin = p.origin || 'Não informado';
+      expedientesPerOrigin[origin] = (expedientesPerOrigin[origin] || 0) + 1;
+    });
+    const origin = Object.entries(expedientesPerOrigin)
+      .map(([name, count]) => ({ name, expedientes: count }))
+      .sort((a, b) => b.expedientes - a.expedientes)
+      .slice(0, 10);
+
+    // Expedientes por status
+    const counts = {};
+    Object.keys(statusConfig).forEach(status => {
+      counts[status] = 0;
+    });
+    let noStatus = 0;
+
+    filteredExpedientes.forEach(p => {
+      if (!p.status) {
+        noStatus++;
+      } else if (counts.hasOwnProperty(p.status)) {
+        counts[p.status]++;
+      } else {
+        counts[p.status] = (counts[p.status] || 0) + 1;
+      }
+    });
+
+    return {
+      totalExpedientes: total,
+      finishedExpedientes: finished,
+      urgentExpedientes: urgent,
+      expCompletionRate: rate,
+      expAvgTotalTime: totalTime,
+      expAvgAnalysisTime: analysisTime,
+      expAvgReviewStageTime: reviewTime,
+      originData: origin,
+      expStatusCounts: counts,
+      expNoStatusCount: noStatus,
+    };
+  }, [filteredExpedientes]);
+
+
+  // ========== COMPARAÇÃO ENTRE PERÍODOS (flag `period_comparison`) ==========
+  // Mês selecionado -> compara com o mês anterior; "todos os meses" -> compara
+  // com o ano anterior. Mantém os cálculos do período atual intocados acima;
+  // aqui apenas espelha a mesma lógica de filtro/agregação para o período
+  // anterior equivalente.
+  const previousPeriod = useMemo(() => {
+    if (selectedMonth === 'all') {
+      return { year: selectedYear - 1, month: 'all' };
+    }
+    const month = Number(selectedMonth);
+    return month === 0 ? { year: selectedYear - 1, month: 11 } : { year: selectedYear, month: month - 1 };
+  }, [selectedYear, selectedMonth]);
+
+  const previousPeriodLabel = previousPeriod.month === 'all'
+    ? `Ano ${previousPeriod.year}`
+    : `${PT_MONTHS[previousPeriod.month]} de ${previousPeriod.year}`;
+
+  const filterByPeriod = (records, year, month) => records.filter(p => {
+    const date = parseLocalDate(p.entry_date);
+    if (!isValid(date)) return false;
+    const yearMatch = date.getFullYear() === year;
+    const monthMatch = month === 'all' || date.getMonth() === Number(month);
+    return yearMatch && monthMatch;
+  });
+
+  const summarizePeriod = (records) => {
+    const total = records.length;
+    const finished = records.filter(p => p.status === 'Na pasta').length;
+    const urgent = records.filter(p => isUrgentValue(p.urgency_request) && p.status !== 'Na pasta').length;
+    const completionRate = total > 0 ? (finished / total) * 100 : 0;
+    const timeData = records.filter(p => p.entry_date && p.review_return_date);
+    const avgTotalTime = timeData.length > 0
+      ? timeData.reduce((acc, p) => acc + calculateBusinessDays(p.entry_date, p.review_return_date), 0) / timeData.length
+      : 0;
+    return { total, urgent, completionRate, avgTotalTime };
+  };
+
+  const previousProcessSummary = useMemo(() => {
+    if (!isPeriodComparisonOn) return null;
+    return summarizePeriod(filterByPeriod(processes, previousPeriod.year, previousPeriod.month));
+  }, [isPeriodComparisonOn, processes, previousPeriod]);
+
+  const previousExpedienteSummary = useMemo(() => {
+    if (!isPeriodComparisonOn) return null;
+    return summarizePeriod(filterByPeriod(expedientes, previousPeriod.year, previousPeriod.month));
+  }, [isPeriodComparisonOn, expedientes, previousPeriod]);
+
+  return (
+    <div className="space-y-6">
+      {/* Filters Header */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm transition-all hover:shadow-md">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+            <CalendarDays className="w-6 h-6" />
+          </div>
+          <div>
+            <h2 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">Período de Análise</h2>
+            <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-widest">Resumo Inteligente</p>
+            {isPeriodComparisonOn && (
+              <p className="text-[11px] font-medium text-slate-400 dark:text-slate-400 mt-0.5">Comparando com {previousPeriodLabel}</p>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <div className="relative flex-1 sm:flex-none">
+            <select
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(Number(e.target.value))}
+              className="w-full sm:w-32 h-11 pl-4 pr-10 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500 appearance-none cursor-pointer"
+            >
+              {years.map(y => <option key={y} value={y}>Ano {y}</option>)}
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-slate-400 pointer-events-none" />
+          </div>
+
+          <div className="relative flex-1 sm:flex-none">
+            <select
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="w-full sm:w-44 h-11 pl-4 pr-10 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500 appearance-none cursor-pointer"
+            >
+              <option value="all">Todos os Meses</option>
+              {PT_MONTHS.map((m, idx) => (
+                <option key={m} value={idx}>{m}</option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-slate-400 pointer-events-none" />
+          </div>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2 mb-2 mt-8">
+        <h2 className="text-xl font-bold text-slate-800 dark:text-white">Métricas: Consultas (Processos)</h2>
+      </div>
+
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <MetricCard
+          title="Total de Processos"
+          value={totalProcesses}
+          icon={FileText}
+          color="from-indigo-500 to-violet-500"
+          comparison={isPeriodComparisonOn && previousProcessSummary
+            ? { current: totalProcesses, previous: previousProcessSummary.total }
+            : null}
+        />
+        <MetricCard
+          title="Taxa de Conclusão"
+          value={`${completionRate}%`}
+          icon={Target}
+          color="from-emerald-500 to-teal-500"
+          comparison={isPeriodComparisonOn && previousProcessSummary
+            ? { current: Number(completionRate), previous: previousProcessSummary.completionRate }
+            : null}
+        />
+        <MetricCard
+          title="Tempo Médio Fluxo"
+          value={`${avgTotalTime} dias`}
+          icon={Clock}
+          color="from-blue-500 to-cyan-500"
+          comparison={isPeriodComparisonOn && previousProcessSummary
+            ? { current: avgTotalTime, previous: previousProcessSummary.avgTotalTime, lowerIsBetter: true }
+            : null}
+        />
+        <MetricCard
+          title="Processos Urgentes"
+          value={urgentProcesses}
+          icon={AlertCircle}
+          color="from-red-500 to-rose-500"
+          comparison={isPeriodComparisonOn && previousProcessSummary
+            ? { current: urgentProcesses, previous: previousProcessSummary.urgent, lowerIsBetter: true }
+            : null}
+        />
+      </div>
+
+      {/* Grid de Gráficos e Métricas */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Volume por Localidade */}
+        <Card className="shadow-sm border-slate-200 dark:border-slate-700">
+          <CardHeader className="border-b border-slate-50 dark:border-slate-800">
+            <CardTitle className="text-lg flex items-center gap-2 font-bold text-slate-800 dark:text-white">
+              <MapPin className="w-5 h-5 text-indigo-500" />
+              Distribuição por Localidade
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-6">
+            {locationData.length > 0 ? (
+              isV2 ? (
+                <MinimalBarList data={locationData} valueKey="processos" />
+              ) : (
+                <ResponsiveContainer width="100%" height={400}>
+                  <BarChart data={locationData} layout="vertical" margin={{ left: 20, right: 30 }}>
+                    <XAxis type="number" hide />
+                    <YAxis
+                      dataKey="name"
+                      type="category"
+                      width={150}
+                      tick={{ fontSize: 12, fontWeight: 600, fill: '#64748b' }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <Tooltip
+                      cursor={{ fill: '#f8fafc' }}
+                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
+                    />
+                    <Bar
+                      dataKey="processos"
+                      fill="#6366f1"
+                      radius={[0, 6, 6, 0]}
+                      barSize={20}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              )
+            ) : (
+              <div className="h-64 flex flex-col items-center justify-center text-slate-400 dark:text-slate-400 gap-2">
+                <FileText className="w-10 h-10 opacity-20" />
+                <p className="font-medium text-sm">Sem dados para este período</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Quadro de Temporalidade */}
+        <TemporalMetrics
+          totalAvg={avgTotalTime}
+          analysisAvg={avgAnalysisTime}
+          reviewAvg={avgReviewStageTime}
+        />
+      </div>
+
+      {/* Resumo por Status */}
+      <Card className="shadow-sm border-slate-200 dark:border-slate-700">
+        <CardHeader>
+          <CardTitle className="text-lg">Resumo por Status</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            {noStatusCount > 0 && (
+              <div className="text-center p-4 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-100 dark:border-slate-700">
+                <div className="text-2xl font-bold text-slate-900 dark:text-white">{noStatusCount}</div>
+                <div className="text-xs text-slate-600 dark:text-slate-300 mt-1">Sem Status</div>
+              </div>
+            )}
+            {Object.entries(statusCounts).map(([status, count]) => {
+              const config = statusConfig[status] || DEFAULT_STATUS_CONFIG;
+              // Use config colors for background/border if desired, logic below uses simple styling
+              // Let's use subtle background from config
+              return (
+                <div
+                  key={status}
+                  className={`text-center p-4 rounded-lg border border-transparent ${config.startColor}`}
+                >
+                  <div className={`text-2xl font-bold ${config.text?.replace('text-', 'text-opacity-90 text-') || 'text-slate-900 dark:text-white'}`}>
+                    {count}
+                  </div>
+                  <div className={`text-xs mt-1 ${config.text || 'text-slate-600 dark:text-slate-300'}`}>
+                    {status}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ==============================================
+          EXPEDIENTES SECTION 
+      ============================================== */}
+      
+      <div className="flex items-center gap-2 mb-2 mt-12 pt-8 border-t border-slate-200 dark:border-slate-800">
+        <h2 className="text-xl font-bold text-slate-800 dark:text-white">Métricas: Expedientes Administrativos</h2>
+      </div>
+
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <MetricCard
+          title="Total de Expedientes"
+          value={totalExpedientes}
+          icon={FileText}
+          color="from-indigo-500 to-violet-500"
+          comparison={isPeriodComparisonOn && previousExpedienteSummary
+            ? { current: totalExpedientes, previous: previousExpedienteSummary.total }
+            : null}
+        />
+        <MetricCard
+          title="Taxa de Conclusão"
+          value={`${expCompletionRate}%`}
+          icon={Target}
+          color="from-emerald-500 to-teal-500"
+          comparison={isPeriodComparisonOn && previousExpedienteSummary
+            ? { current: Number(expCompletionRate), previous: previousExpedienteSummary.completionRate }
+            : null}
+        />
+        <MetricCard
+          title="Tempo Médio Fluxo"
+          value={`${expAvgTotalTime} dias`}
+          icon={Clock}
+          color="from-blue-500 to-cyan-500"
+          comparison={isPeriodComparisonOn && previousExpedienteSummary
+            ? { current: expAvgTotalTime, previous: previousExpedienteSummary.avgTotalTime, lowerIsBetter: true }
+            : null}
+        />
+        <MetricCard
+          title="Expedientes Urgentes"
+          value={urgentExpedientes}
+          icon={AlertCircle}
+          color="from-red-500 to-rose-500"
+          comparison={isPeriodComparisonOn && previousExpedienteSummary
+            ? { current: urgentExpedientes, previous: previousExpedienteSummary.urgent, lowerIsBetter: true }
+            : null}
+        />
+      </div>
+
+      {/* Grid de Gráficos e Métricas */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Volume por Origem */}
+        <Card className="shadow-sm border-slate-200 dark:border-slate-700">
+          <CardHeader className="border-b border-slate-50 dark:border-slate-800">
+            <CardTitle className="text-lg flex items-center gap-2 font-bold text-slate-800 dark:text-white">
+              <MapPin className="w-5 h-5 text-indigo-500" />
+              Distribuição por Origem
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-6">
+            {originData.length > 0 ? (
+              isV2 ? (
+                <MinimalBarList data={originData} valueKey="expedientes" />
+              ) : (
+                <ResponsiveContainer width="100%" height={400}>
+                  <BarChart data={originData} layout="vertical" margin={{ left: 20, right: 30 }}>
+                    <XAxis type="number" hide />
+                    <YAxis
+                      dataKey="name"
+                      type="category"
+                      width={150}
+                      tick={{ fontSize: 12, fontWeight: 600, fill: '#64748b' }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <Tooltip
+                      cursor={{ fill: '#f8fafc' }}
+                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
+                    />
+                    <Bar
+                      dataKey="expedientes"
+                      fill="#6366f1"
+                      radius={[0, 6, 6, 0]}
+                      barSize={20}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              )
+            ) : (
+              <div className="h-64 flex flex-col items-center justify-center text-slate-400 dark:text-slate-400 gap-2">
+                <FileText className="w-10 h-10 opacity-20" />
+                <p className="font-medium text-sm">Sem dados para este período</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Quadro de Temporalidade */}
+        <TemporalMetrics
+          totalAvg={expAvgTotalTime}
+          analysisAvg={expAvgAnalysisTime}
+          reviewAvg={expAvgReviewStageTime}
+        />
+      </div>
+
+      {/* Resumo por Status */}
+      <Card className="shadow-sm border-slate-200 dark:border-slate-700">
+        <CardHeader>
+          <CardTitle className="text-lg">Resumo por Status</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            {expNoStatusCount > 0 && (
+              <div className="text-center p-4 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-100 dark:border-slate-700">
+                <div className="text-2xl font-bold text-slate-900 dark:text-white">{expNoStatusCount}</div>
+                <div className="text-xs text-slate-600 dark:text-slate-300 mt-1">Sem Status</div>
+              </div>
+            )}
+            {Object.entries(expStatusCounts).map(([status, count]) => {
+              const config = statusConfig[status] || DEFAULT_STATUS_CONFIG;
+              return (
+                <div
+                  key={status}
+                  className={`text-center p-4 rounded-lg border border-transparent ${config.startColor}`}
+                >
+                  <div className={`text-2xl font-bold ${config.text?.replace('text-', 'text-opacity-90 text-') || 'text-slate-900 dark:text-white'}`}>
+                    {count}
+                  </div>
+                  <div className={`text-xs mt-1 ${config.text || 'text-slate-600 dark:text-slate-300'}`}>
+                    {status}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+      
+    </div>
+  );
+}
+
+function MetricCard({ title, value, icon: Icon, color, comparison }) {
+  const isV2 = useFlag(FEATURE_FLAGS.FRONTEND_V2.key);
+  return (
+    <Card className="shadow-sm border-slate-200 dark:border-slate-700">
+      <CardContent className="p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-slate-600 dark:text-slate-300">{title}</p>
+            <div className="flex items-center gap-2 mt-2">
+              <h3 className="text-2xl font-bold text-slate-900 dark:text-white">{value}</h3>
+              {comparison && <ComparisonBadge {...comparison} />}
+            </div>
+          </div>
+          <div className={cn(
+            'w-12 h-12 rounded-xl flex items-center justify-center',
+            isV2 ? (V2_ICON_COLOR[color] || 'bg-primary') : `bg-gradient-to-br ${color}`
+          )}>
+            <Icon className="w-6 h-6 text-white" />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// Selo de comparação com o período anterior (flag `period_comparison`).
+// `lowerIsBetter` inverte a semântica de cor para métricas em que menos é
+// melhor (tempo médio, quantidade de urgentes parados).
+function ComparisonBadge({ current, previous, lowerIsBetter = false }) {
+  if (!Number.isFinite(current) || !Number.isFinite(previous)) return null;
+  if (current === 0 && previous === 0) return null;
+
+  let direction;
+  let label;
+  if (previous === 0) {
+    direction = current > 0 ? 'up' : 'flat';
+    label = current > 0 ? 'novo' : '—';
+  } else {
+    const pct = ((current - previous) / previous) * 100;
+    direction = pct > 0.5 ? 'up' : pct < -0.5 ? 'down' : 'flat';
+    label = `${pct > 0 ? '+' : ''}${pct.toFixed(0)}%`;
+  }
+
+  const isGood = direction === 'flat' ? null : (lowerIsBetter ? direction === 'down' : direction === 'up');
+  const colorClass = isGood === null
+    ? 'text-slate-500 bg-slate-100 dark:text-slate-200 dark:bg-slate-700'
+    : isGood
+      ? 'text-emerald-700 bg-emerald-50 dark:text-emerald-200 dark:bg-emerald-900'
+      : 'text-rose-700 bg-rose-50 dark:text-rose-200 dark:bg-rose-900';
+  const Arrow = direction === 'up' ? ArrowUp : direction === 'down' ? ArrowDown : Minus;
+
+  return (
+    <span
+      className={cn('inline-flex items-center gap-0.5 text-[11px] font-semibold px-1.5 py-0.5 rounded-md', colorClass)}
+      title="Comparação com o período anterior equivalente"
+    >
+      <Arrow className="w-3 h-3" />
+      {label}
+    </span>
+  );
+}
+

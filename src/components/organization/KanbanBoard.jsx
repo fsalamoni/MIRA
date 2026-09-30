@@ -1,0 +1,1106 @@
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import {
+    DndContext,
+    DragOverlay,
+    PointerSensor,
+    useSensor,
+    useSensors,
+    pointerWithin,
+    closestCorners,
+} from '@dnd-kit/core';
+import {
+    SortableContext,
+    verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { useDroppable } from '@dnd-kit/core';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Loader2, Inbox, Pencil, Send, Eye, CheckCheck, FolderCheck, SlidersHorizontal, FilterX, ArrowUpDown, Plus, X } from 'lucide-react';
+import { toast } from 'sonner';
+import { calculateDerivedStatus, getProcessField } from '@/utils/processUtils';
+import { updateProcess } from '@/services/functionsService';
+import { isValid } from 'date-fns';
+import { parseLocalDate } from '@/lib/dateUtils';
+import { useFlag } from '@/lib/FeatureFlagsContext';
+import { FEATURE_FLAGS } from '@/constants/featureFlags';
+import { computeStageAverages, resolveStageTimeConfig } from '@/lib/stageTime';
+import { safeLower } from '@/lib/stringUtils';
+import KanbanCard from './KanbanCard';
+import KanbanTransitionDialog from './KanbanTransitionDialog';
+import ProcessDetailSheet from './ProcessDetailSheet';
+import EditProcessDialog from './EditProcessDialog';
+import CreateProcessButton from './CreateProcessButton';
+import EmptyState from '../ui/EmptyState';
+import { useUserPreferences } from '@/hooks/useFirestore';
+import { archivedSortRules, ARCHIVED_TIEBREAK_KEY, momentoEmMs } from '@/lib/archivedSort';
+
+
+// === Column Definitions ===
+// Lista completa; a fase "Aguarda retorno de terceiros" é filtrada em tempo
+// de execução dentro do componente, conforme a configuração do órgão
+// (organization.thirdPartyPhaseEnabledConsultas) — ver KANBAN_COLUMNS mais abaixo.
+const ALL_KANBAN_COLUMNS = [
+    {
+        id: 'Pendente',
+        label: 'Pendentes',
+        icon: Inbox,
+        emptyText: 'Nenhum processo pendente',
+        headerBg: 'bg-slate-50 dark:bg-slate-800',
+        headerBorder: 'border-slate-200 dark:border-slate-600',
+        headerText: 'text-slate-600 dark:text-slate-100',
+        columnBg: 'bg-slate-50/50 dark:bg-slate-900',
+        dotColor: 'bg-slate-400 dark:bg-slate-400',
+    },
+    {
+        id: 'Em elaboração',
+        label: 'Em Análise',
+        icon: Pencil,
+        emptyText: 'Nenhum processo em análise',
+        headerBg: 'bg-amber-50 dark:bg-amber-900',
+        headerBorder: 'border-amber-200 dark:border-amber-600',
+        headerText: 'text-amber-700 dark:text-amber-100',
+        columnBg: 'bg-amber-50/30 dark:bg-amber-950/30',
+        dotColor: 'bg-amber-400 dark:bg-amber-400',
+    },
+    {
+        id: 'Aguarda retorno de terceiros',
+        label: 'Aguarda Terceiros',
+        icon: Send,
+        emptyText: 'Nenhum processo aguardando terceiros',
+        headerBg: 'bg-cyan-50 dark:bg-cyan-900',
+        headerBorder: 'border-cyan-200 dark:border-cyan-600',
+        headerText: 'text-cyan-700 dark:text-cyan-100',
+        columnBg: 'bg-cyan-50/30 dark:bg-cyan-950/30',
+        dotColor: 'bg-cyan-400 dark:bg-cyan-400',
+    },
+    {
+        id: 'Em revisão',
+        label: 'Em Revisão',
+        icon: Eye,
+        emptyText: 'Nenhum processo em revisão',
+        headerBg: 'bg-sky-50 dark:bg-sky-900',
+        headerBorder: 'border-sky-200 dark:border-sky-600',
+        headerText: 'text-sky-700 dark:text-sky-100',
+        columnBg: 'bg-sky-50/30 dark:bg-sky-950/30',
+        dotColor: 'bg-sky-400 dark:bg-sky-400',
+    },
+    {
+        id: 'Revisadas',
+        label: 'Revisadas',
+        icon: CheckCheck,
+        emptyText: 'Nenhum processo revisado',
+        headerBg: 'bg-violet-50 dark:bg-violet-900',
+        headerBorder: 'border-violet-200 dark:border-violet-600',
+        headerText: 'text-violet-700 dark:text-violet-100',
+        columnBg: 'bg-violet-50/30 dark:bg-violet-950/30',
+        dotColor: 'bg-violet-400 dark:bg-violet-400',
+    },
+    {
+        id: 'Na pasta',
+        label: 'Arquivados',
+        icon: FolderCheck,
+        emptyText: 'Nenhum processo arquivado',
+        headerBg: 'bg-green-50 dark:bg-green-900',
+        headerBorder: 'border-green-200 dark:border-green-600',
+        headerText: 'text-green-700 dark:text-green-100',
+        columnBg: 'bg-green-50/30 dark:bg-green-950/30',
+        dotColor: 'bg-green-400 dark:bg-green-400',
+    },
+];
+
+const DATE_SORT_KEYS = new Set([
+    'entry_date',
+    'distribution_date',
+    'analysis_start_date',
+    'review_submission_date',
+    'reviewed_date',
+    'review_return_date',
+    'archived_date',
+]);
+
+const PROCESS_SORT_OPTIONS = [
+    { key: 'urgency_request', label: 'Urgência' },
+    { key: 'entry_date', label: 'Entrada no órgão' },
+    { key: 'process_number', label: 'Número do processo' },
+    { key: 'consultant', label: 'Consulente' },
+    { key: 'responsible_user_name', label: 'Responsável' },
+];
+
+const DEFAULT_THIRD_PARTIES = ['Perícia', 'Delegacia de Polícia', 'Outro Órgão Público', 'Terceiro'];
+
+const buildDefaultProcessFilters = () => ({
+    urgency: 'all',
+    responsible: 'all',
+    consultant: 'all',
+});
+
+const buildDefaultProcessSortRules = () => ([
+    { key: 'urgency_request', direction: 'desc' },
+    { key: 'entry_date', direction: 'asc' },
+]);
+
+const isUrgencyMarked = (value) =>
+    value === true || String(value ?? '').toLowerCase().trim() === 'sim';
+
+const sanitizeSortRules = (rules) => {
+    if (!Array.isArray(rules)) return [];
+
+    const validKeys = new Set(PROCESS_SORT_OPTIONS.map(option => option.key));
+    return rules
+        .map(rule => ({
+            key: rule?.key,
+            direction: rule?.direction === 'desc' ? 'desc' : 'asc',
+        }))
+        .filter(rule => validKeys.has(rule.key))
+        .slice(0, 3);
+};
+
+export default function KanbanBoard({
+    organization,
+    members,
+    processes,
+    userRole,
+    userId,
+    processesLoading,
+}) {
+    const { preferences, updatePreferences, isLoading: isLoadingPrefs } = useUserPreferences();
+
+    // Indicador de tempo na etapa atual (flag `stage_time_indicator`): média
+    // histórica calculada sobre TODOS os processos do órgão (não só o ano
+    // filtrado), para uma referência mais estável. Limiares/cores/tipo de dia
+    // são configuráveis pelo admin em Painel Administrativo → Indicador de Tempo.
+    const stageTimeIndicatorOn = useFlag(FEATURE_FLAGS.STAGE_TIME_INDICATOR.key);
+    const stageTimeConfig = useMemo(
+        () => resolveStageTimeConfig(organization?.stageTimeConfig),
+        [organization?.stageTimeConfig]
+    );
+    const stageAverages = useMemo(
+        () => (stageTimeIndicatorOn ? computeStageAverages(processes, getProcessField, stageTimeConfig.dayType) : null),
+        [stageTimeIndicatorOn, processes, stageTimeConfig.dayType]
+    );
+
+    const [activeId, setActiveId] = useState(null);
+    const [dialogOpen, setDialogOpen] = useState(false);
+    const [dialogMode, setDialogMode] = useState('assign');
+    const [pendingProcess, setPendingProcess] = useState(null);
+    const [pendingTarget, setPendingTarget] = useState(null);
+
+    // Detail sheet state
+    const [detailProcess, setDetailProcess] = useState(null);
+    const [detailOpen, setDetailOpen] = useState(false);
+
+    // Edit dialog state
+    const [editProcess, setEditProcess] = useState(null);
+    const [editOpen, setEditOpen] = useState(false);
+
+    // Year filter
+    const currentYear = new Date().getFullYear();
+    const [selectedYear, setSelectedYear] = useState(currentYear);
+    const [viewFilters, setViewFilters] = useState(() => buildDefaultProcessFilters());
+    const [sortRules, setSortRules] = useState(() => buildDefaultProcessSortRules());
+    const [isPrefsInitialized, setIsPrefsInitialized] = useState(false);
+
+    const years = useMemo(() => {
+        const yearsSet = new Set([currentYear]);
+        processes.forEach(p => {
+            const date = parseLocalDate(getProcessField(p, 'entry_date'));
+            const year = isValid(date) ? date.getFullYear() : null;
+            if (year && !isNaN(year)) yearsSet.add(year);
+        });
+        return Array.from(yearsSet).sort((a, b) => b - a);
+    }, [processes, currentYear]);
+
+    const availableResponsibleNames = useMemo(() => {
+        const names = new Set();
+        processes.forEach(p => {
+            const value = getProcessField(p, 'responsible_user_name');
+            if (value && typeof value === 'string' && value.trim()) {
+                names.add(value.trim());
+            }
+        });
+        return Array.from(names).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+    }, [processes]);
+
+    const availableConsultants = useMemo(() => {
+        const names = new Set();
+        processes.forEach(p => {
+            const value = getProcessField(p, 'consultant');
+            if (value && typeof value === 'string' && value.trim()) {
+                names.add(value.trim());
+            }
+        });
+        return Array.from(names).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+    }, [processes]);
+
+    // Namespeado por organização: são preferências globais do usuário
+    // (userPreferences/{uid}), guardadas todas no mesmo documento — sem o
+    // sufixo do organization_id, um filtro/ordenação salvo no Kanban do
+    // órgão A reaparecia (errado) ao abrir o Kanban do órgão B.
+    const filtersKey = `kanban_process_filters_${organization?.id || 'default'}`;
+    const sortRulesKey = `kanban_process_sortRules_${organization?.id || 'default'}`;
+
+    const appliedPrefsRef = useRef(null);
+    useEffect(() => {
+        if (isLoadingPrefs) return;
+
+        const prefsSlice = {
+            filters: preferences?.[filtersKey] || null,
+            sortRules: preferences?.[sortRulesKey] || null,
+        };
+        const prefsKey = `${organization?.id}:${JSON.stringify(prefsSlice)}`;
+        if (appliedPrefsRef.current === prefsKey) {
+            if (!isPrefsInitialized) setIsPrefsInitialized(true);
+            return;
+        }
+
+        const loadedFilters =
+            prefsSlice.filters && typeof prefsSlice.filters === 'object'
+                ? {
+                    ...buildDefaultProcessFilters(),
+                    urgency: prefsSlice.filters.urgency || 'all',
+                    responsible: prefsSlice.filters.responsible || 'all',
+                    consultant: prefsSlice.filters.consultant || 'all',
+                }
+                : buildDefaultProcessFilters();
+
+        const loadedSortRules = sanitizeSortRules(prefsSlice.sortRules);
+
+        setViewFilters(loadedFilters);
+        setSortRules(loadedSortRules.length > 0 ? loadedSortRules : buildDefaultProcessSortRules());
+        appliedPrefsRef.current = prefsKey;
+
+        if (!isPrefsInitialized) {
+            setIsPrefsInitialized(true);
+        }
+    }, [preferences, isLoadingPrefs, isPrefsInitialized, filtersKey, sortRulesKey, organization?.id]);
+
+    const effectiveSortRules = useMemo(() => {
+        const sanitized = sanitizeSortRules(sortRules);
+        return sanitized.length > 0 ? sanitized : buildDefaultProcessSortRules();
+    }, [sortRules]);
+
+    const saveTimerRef = useRef(null);
+    useEffect(() => {
+        if (!isPrefsInitialized) return;
+
+        if (saveTimerRef.current) {
+            clearTimeout(saveTimerRef.current);
+        }
+
+        saveTimerRef.current = setTimeout(() => {
+            updatePreferences({
+                [filtersKey]: viewFilters,
+                [sortRulesKey]: effectiveSortRules,
+            });
+        }, 500);
+
+        return () => clearTimeout(saveTimerRef.current);
+    }, [viewFilters, effectiveSortRules, isPrefsInitialized, updatePreferences, filtersKey, sortRulesKey]);
+
+    const getComparableValue = useCallback((process, key) => {
+        if (key === ARCHIVED_TIEBREAK_KEY) return momentoEmMs(process?.updated_at);
+        if (key === 'urgency_request') {
+            return isUrgencyMarked(getProcessField(process, 'urgency_request')) ? 1 : 0;
+        }
+
+        const rawValue = getProcessField(process, key);
+        if (rawValue === undefined || rawValue === null || String(rawValue).trim() === '') {
+            return null;
+        }
+
+        if (DATE_SORT_KEYS.has(key)) {
+            const parsedDate = parseLocalDate(rawValue);
+            return isValid(parsedDate) ? parsedDate.getTime() : null;
+        }
+
+        return String(rawValue);
+    }, []);
+
+    const compareProcesses = useCallback((a, b, rules = effectiveSortRules) => {
+        for (const rule of rules) {
+            const valueA = getComparableValue(a, rule.key);
+            const valueB = getComparableValue(b, rule.key);
+
+            if (valueA === null && valueB === null) continue;
+            if (valueA === null) return 1;
+            if (valueB === null) return -1;
+
+            let comparison = 0;
+            if (typeof valueA === 'number' && typeof valueB === 'number') {
+                comparison = valueA - valueB;
+            } else {
+                comparison = String(valueA).localeCompare(String(valueB), 'pt-BR', {
+                    numeric: true,
+                    sensitivity: 'base',
+                });
+            }
+
+            if (comparison !== 0) {
+                return rule.direction === 'asc' ? comparison : -comparison;
+            }
+        }
+
+        return 0;
+    }, [effectiveSortRules, getComparableValue]);
+
+    // Coluna de arquivados ("Na pasta"): a urgência não pesa e, no padrão,
+    // vale a data de arquivamento, do mais recente para o mais antigo. A ordem
+    // personalizada do usuário continua valendo (ver lib/archivedSort.js).
+    const regrasArquivados = useMemo(
+        () => archivedSortRules(effectiveSortRules, buildDefaultProcessSortRules()),
+        [effectiveSortRules]
+    );
+
+    const filteredProcesses = useMemo(() => {
+        return processes.filter(p => {
+            const date = parseLocalDate(getProcessField(p, 'entry_date'));
+            if (!isValid(date)) {
+                return false;
+            }
+
+            if (date.getFullYear() !== selectedYear) {
+                return false;
+            }
+
+            const isUrgent = isUrgencyMarked(getProcessField(p, 'urgency_request'));
+            if (viewFilters.urgency === 'urgent' && !isUrgent) {
+                return false;
+            }
+            if (viewFilters.urgency === 'normal' && isUrgent) {
+                return false;
+            }
+
+            if (
+                viewFilters.responsible !== 'all' &&
+                getProcessField(p, 'responsible_user_name') !== viewFilters.responsible
+            ) {
+                return false;
+            }
+
+            if (viewFilters.consultant !== 'all' && getProcessField(p, 'consultant') !== viewFilters.consultant) {
+                return false;
+            }
+
+            return true;
+        });
+    }, [processes, selectedYear, viewFilters]);
+
+    // User role detection
+    const userMember = useMemo(() =>
+        members.find(m => m.user_id === userId),
+        [members, userId]
+    );
+    const userFunc = safeLower(userMember?.function);
+    const isAssessor = userFunc.includes('assessor') || userFunc.includes('assessoria');
+
+    const assessors = useMemo(() =>
+        members.filter(m => {
+            const fn = safeLower(m.function);
+            return fn.includes('assessor') || fn.includes('assessoria');
+        }),
+        [members]
+    );
+
+    // Lista de terceiros personalizável por órgão (Painel Administrativo →
+    // Padronização de Consultas), usada no modal "Aguarda retorno de terceiros".
+    const thirdParties = organization?.thirdPartiesSettingsConsultas || DEFAULT_THIRD_PARTIES;
+
+    // Liga/desliga a fase "Aguarda retorno de terceiros" — só Painel de
+    // Consultas (Painel Administrativo → Classificação (matérias)). Ausente/
+    // undefined = habilitada (preserva o comportamento já publicado).
+    const thirdPartyPhaseEnabled = organization?.thirdPartyPhaseEnabledConsultas !== false;
+
+    // Distribute into columns
+    const columns = useMemo(() => {
+        const grouped = { 'Pendente': [], 'Em elaboração': [], 'Aguarda retorno de terceiros': [], 'Em revisão': [], 'Revisadas': [], 'Na pasta': [] };
+        filteredProcesses.forEach(p => {
+            const status = calculateDerivedStatus(p);
+            (grouped[status] || grouped['Pendente']).push(p);
+        });
+
+        Object.keys(grouped).forEach(statusKey => {
+            const regras = statusKey === 'Na pasta' ? regrasArquivados : effectiveSortRules;
+            grouped[statusKey] = grouped[statusKey]
+                .map((item, index) => ({ item, index }))
+                .sort((a, b) => {
+                    const ruleComparison = compareProcesses(a.item, b.item, regras);
+                    if (ruleComparison !== 0) {
+                        return ruleComparison;
+                    }
+                    return a.index - b.index;
+                })
+                .map(({ item }) => item);
+        });
+
+        return grouped;
+    }, [filteredProcesses, compareProcesses, regrasArquivados, effectiveSortRules]);
+
+    // Colunas efetivamente exibidas: a fase "Aguarda retorno de terceiros" só
+    // aparece se habilitada no órgão OU se já houver processos nela — assim,
+    // desligar a fase nunca esconde/perde processos que já estejam nela.
+    const KANBAN_COLUMNS = useMemo(() => {
+        const hasProcessesInPhase = (columns['Aguarda retorno de terceiros'] || []).length > 0;
+        if (thirdPartyPhaseEnabled || hasProcessesInPhase) return ALL_KANBAN_COLUMNS;
+        return ALL_KANBAN_COLUMNS.filter(col => col.id !== 'Aguarda retorno de terceiros');
+    }, [thirdPartyPhaseEnabled, columns]);
+
+    // Transições válidas "para frente": um passo por vez; quando a fase
+    // "Aguarda retorno de terceiros" está presente, a coluna anterior a ela
+    // também pode pular direto para a coluna seguinte (fase opcional).
+    const VALID_FORWARD = useMemo(() => {
+        const map = {};
+        KANBAN_COLUMNS.forEach((col, idx) => {
+            if (idx >= KANBAN_COLUMNS.length - 1) {
+                map[idx] = [];
+                return;
+            }
+            const targets = [idx + 1];
+            if (KANBAN_COLUMNS[idx + 1]?.id === 'Aguarda retorno de terceiros' && idx + 2 < KANBAN_COLUMNS.length) {
+                targets.push(idx + 2);
+            }
+            map[idx] = targets;
+        });
+        return map;
+    }, [KANBAN_COLUMNS]);
+
+    const activeProcess = useMemo(() => {
+        if (!activeId) return null;
+        return filteredProcesses.find(p => p.id === activeId) || null;
+    }, [activeId, filteredProcesses]);
+
+    const sensors = useSensors(
+        useSensor(PointerSensor, { activationConstraint: { distance: 3 } })
+    );
+
+    const getColumnIndex = (status) =>
+        KANBAN_COLUMNS.findIndex(col => col.id === status);
+
+    const activeFiltersCount = useMemo(() => {
+        let count = 0;
+        if (viewFilters.urgency !== 'all') count += 1;
+        if (viewFilters.responsible !== 'all') count += 1;
+        if (viewFilters.consultant !== 'all') count += 1;
+        return count;
+    }, [viewFilters]);
+
+    const handleFilterChange = useCallback((key, value) => {
+        setViewFilters(prev => ({ ...prev, [key]: value }));
+    }, []);
+
+    const clearFilters = useCallback(() => {
+        setViewFilters(buildDefaultProcessFilters());
+    }, []);
+
+    const resetSortRules = useCallback(() => {
+        setSortRules(buildDefaultProcessSortRules());
+    }, []);
+
+    const resetViewConfig = useCallback(() => {
+        setViewFilters(buildDefaultProcessFilters());
+        setSortRules(buildDefaultProcessSortRules());
+    }, []);
+
+    const addSortRule = useCallback(() => {
+        setSortRules(prev => {
+            const current = sanitizeSortRules(prev);
+            if (current.length >= 3) return current;
+
+            const usedKeys = new Set(current.map(rule => rule.key));
+            const nextKey = PROCESS_SORT_OPTIONS.find(option => !usedKeys.has(option.key))?.key || 'entry_date';
+
+            return [...current, { key: nextKey, direction: 'asc' }];
+        });
+    }, []);
+
+    const updateSortRuleKey = useCallback((index, nextKey) => {
+        setSortRules(prev => {
+            const current = sanitizeSortRules(prev);
+            if (!current[index]) return current;
+
+            const next = [...current];
+            next[index] = { ...next[index], key: nextKey };
+            return next;
+        });
+    }, []);
+
+    const updateSortRuleDirection = useCallback((index, nextDirection) => {
+        setSortRules(prev => {
+            const current = sanitizeSortRules(prev);
+            if (!current[index]) return current;
+
+            const next = [...current];
+            next[index] = {
+                ...next[index],
+                direction: nextDirection === 'desc' ? 'desc' : 'asc',
+            };
+            return next;
+        });
+    }, []);
+
+    const removeSortRule = useCallback((index) => {
+        setSortRules(prev => {
+            const current = sanitizeSortRules(prev);
+            if (current.length <= 1) return current;
+
+            return current.filter((_, idx) => idx !== index);
+        });
+    }, []);
+
+    // === Eye Icon: View Details ===
+    const handleViewDetails = useCallback((process) => {
+        setDetailProcess(process);
+        setDetailOpen(true);
+    }, []);
+
+    const handleEditFromDetail = useCallback((process) => {
+        setDetailOpen(false);
+        setEditProcess(process);
+        setEditOpen(true);
+    }, []);
+
+    // === Backward Move ===
+    // useCallback com `organization` nas deps: antes era uma função plana
+    // recriada a cada render, e handleDragEnd (que a chama) não a tinha em
+    // suas próprias deps — numa troca rápida de órgão, handleDragEnd podia
+    // ficar presa numa versão antiga que gravava no organization.id errado.
+    const handleBackwardMove = useCallback(async (process, fromStatus, toStatus) => {
+        const processNumber = getProcessField(process, 'process_number');
+        const colLabel = KANBAN_COLUMNS.find(c => c.id === toStatus)?.label || toStatus;
+
+        const rollbackByStatus = {
+            Pendente: {
+                analysis_start_date: null,
+                third_party_referral_date: null,
+                third_party_recipient: null,
+                review_submission_date: null,
+                reviewed_date: null,
+                review_return_date: null,
+                archived_date: null,
+                responsible_user_id: null,
+                responsible_user_name: null,
+            },
+            'Em elaboração': {
+                third_party_referral_date: null,
+                third_party_recipient: null,
+                review_submission_date: null,
+                reviewed_date: null,
+                review_return_date: null,
+                archived_date: null,
+            },
+            'Aguarda retorno de terceiros': {
+                review_submission_date: null,
+                reviewed_date: null,
+                review_return_date: null,
+                archived_date: null,
+            },
+            'Em revisão': {
+                reviewed_date: null,
+                archived_date: null,
+            },
+            'Revisadas': {
+                archived_date: null,
+            },
+        };
+
+        const changes = {
+            status: toStatus,
+            ...(rollbackByStatus[toStatus] || {}),
+        };
+
+        try {
+            await updateProcess({
+                id: process.id,
+                organizationId: organization.id,
+                changes,
+            });
+            toast.success(`Processo ${processNumber} retornou para "${colLabel}".`);
+        } catch (err) {
+            toast.error('Erro ao mover processo: ' + err.message);
+        }
+    }, [organization, KANBAN_COLUMNS]);
+
+    // === Forward Transition ===
+    const handleForwardTransition = useCallback(async (process, fromStatus, toStatus) => {
+        if (fromStatus === 'Pendente' && toStatus === 'Em elaboração') {
+            // Always show assign dialog; pre-select self if assessor
+            setPendingProcess(process);
+            setPendingTarget(toStatus);
+            setDialogMode('assign');
+            setDialogOpen(true);
+            return;
+        }
+
+        if (fromStatus === 'Em elaboração' && toStatus === 'Aguarda retorno de terceiros') {
+            setPendingProcess(process);
+            setPendingTarget(toStatus);
+            setDialogMode('third_party');
+            setDialogOpen(true);
+            return;
+        }
+
+        if (
+            (fromStatus === 'Em elaboração' || fromStatus === 'Aguarda retorno de terceiros') &&
+            toStatus === 'Em revisão'
+        ) {
+            setPendingProcess(process);
+            setPendingTarget(toStatus);
+            setDialogMode('review');
+            setDialogOpen(true);
+            return;
+        }
+
+        if (fromStatus === 'Em revisão' && toStatus === 'Revisadas') {
+            setPendingProcess(process);
+            setPendingTarget(toStatus);
+            setDialogMode('review_complete');
+            setDialogOpen(true);
+            return;
+        }
+
+        if (fromStatus === 'Revisadas' && toStatus === 'Na pasta') {
+            setPendingProcess(process);
+            setPendingTarget(toStatus);
+            setDialogMode('archive');
+            setDialogOpen(true);
+            return;
+        }
+    }, []);
+
+    // === Drag Handlers ===
+    const handleDragStart = useCallback((event) => {
+        setActiveId(event.active.id);
+    }, []);
+
+    const handleDragEnd = useCallback((event) => {
+        const { active, over } = event;
+        setActiveId(null);
+
+        if (!over) return;
+
+        const process = filteredProcesses.find(p => p.id === active.id);
+        if (!process) return;
+
+        const currentStatus = calculateDerivedStatus(process);
+        const targetColumnId = over.data?.current?.columnId || over.id;
+
+        if (currentStatus === targetColumnId) return;
+
+        const currentIdx = getColumnIndex(currentStatus);
+        const targetIdx = getColumnIndex(targetColumnId);
+
+        if (currentIdx < 0 || targetIdx < 0) {
+            toast.error('Não foi possível identificar a coluna de origem ou destino.', { duration: 3000 });
+            return;
+        }
+
+        const isForward = VALID_FORWARD[currentIdx]?.includes(targetIdx);
+        const isBackward = targetIdx < currentIdx;
+
+        if (!isForward && !isBackward) {
+            toast.error('Para avançar o fluxo, mova apenas para a próxima coluna.', { duration: 3000 });
+            return;
+        }
+
+        if (isBackward) {
+            handleBackwardMove(process, currentStatus, targetColumnId);
+        } else {
+            handleForwardTransition(process, currentStatus, targetColumnId);
+        }
+    }, [filteredProcesses, isAssessor, userId, userMember, handleBackwardMove, handleForwardTransition, getColumnIndex, VALID_FORWARD]);
+
+    const handleDragCancel = useCallback(() => {
+        setActiveId(null);
+    }, []);
+
+    // === Dialog Confirm ===
+    const handleDialogConfirm = async (data) => {
+        if (!pendingProcess || !pendingTarget) return;
+
+        const today = new Date().toISOString().split('T')[0];
+        const processNumber = getProcessField(pendingProcess, 'process_number');
+        let changes = {};
+
+        if (dialogMode === 'assign') {
+            changes = {
+                analysis_start_date: today,
+                distribution_date: today,
+                responsible_user_id: data.responsible_user_id,
+                responsible_user_name: data.responsible_user_name,
+                status: 'Em elaboração',
+            };
+        } else if (dialogMode === 'third_party') {
+            changes = {
+                third_party_referral_date: data.third_party_referral_date || today,
+                third_party_recipient: data.third_party_recipient,
+                status: 'Aguarda retorno de terceiros',
+            };
+        } else if (dialogMode === 'review') {
+            changes = {
+                review_submission_date: today,
+                network_folder: data.network_folder,
+                status: 'Em revisão',
+            };
+            // Observações são opcionais: só entram quando o diálogo as enviou.
+            if (data.observations !== undefined) changes.observations = data.observations;
+        } else if (dialogMode === 'review_complete') {
+            changes = {
+                reviewed_date: data.reviewed_date || today,
+                status: 'Revisadas',
+            };
+        } else if (dialogMode === 'archive') {
+            changes = {
+                archived_date: today,
+                review_return_date: data.review_return_date || today,
+                status: 'Na pasta',
+            };
+        }
+
+        try {
+            await updateProcess({
+                id: pendingProcess.id,
+                organizationId: organization.id,
+                changes,
+            });
+            const actions = {
+                assign: `Processo ${processNumber} em análise!`,
+                third_party: `Processo ${processNumber} remetido a terceiros!`,
+                review: `Processo ${processNumber} enviado para revisão!`,
+                review_complete: `Processo ${processNumber} marcado como revisado!`,
+                archive: `Processo ${processNumber} arquivado!`,
+            };
+            toast.success(actions[dialogMode]);
+        } catch (err) {
+            toast.error('Erro ao atualizar processo: ' + err.message);
+            throw err;
+        }
+
+        setPendingProcess(null);
+        setPendingTarget(null);
+    };
+
+    if (processesLoading) {
+        return (
+            <Card className="p-12 flex items-center justify-center">
+                <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+            </Card>
+        );
+    }
+
+    return (
+        <div className="space-y-4">
+            {/* Header */}
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                    <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Painel de Consultas</h2>
+                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                        Arraste os processos entre as colunas para avançar ou retornar o fluxo.
+                    </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                    <CreateProcessButton organization={organization} members={members} />
+
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button variant="outline" className="h-10 gap-2">
+                                <SlidersHorizontal className="w-4 h-4" />
+                                Filtros e ordem
+                                {activeFiltersCount > 0 && (
+                                    <Badge className="h-5 min-w-[20px] bg-indigo-600 px-1.5 text-[10px] text-white hover:bg-indigo-600">
+                                        {activeFiltersCount}
+                                    </Badge>
+                                )}
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent align="end" className="w-[420px] space-y-4 p-4">
+                            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-700 pb-2">
+                                <h4 className="text-sm font-semibold text-slate-800 dark:text-white">Configurar visualização</h4>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={resetViewConfig}
+                                    className="h-8 gap-1 text-[11px] font-semibold uppercase tracking-tight text-indigo-600 hover:text-indigo-700"
+                                >
+                                    <FilterX className="h-3.5 w-3.5" />
+                                    Restaurar padrão
+                                </Button>
+                            </div>
+
+                            <div className="space-y-2">
+                                <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Filtros por coluna</p>
+
+                                <Select value={viewFilters.urgency} onValueChange={(value) => handleFilterChange('urgency', value)}>
+                                    <SelectTrigger className="h-9">
+                                        <SelectValue placeholder="Urgência" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">Urgência: todas</SelectItem>
+                                        <SelectItem value="urgent">Somente urgentes</SelectItem>
+                                        <SelectItem value="normal">Somente não urgentes</SelectItem>
+                                    </SelectContent>
+                                </Select>
+
+                                <Select value={viewFilters.responsible} onValueChange={(value) => handleFilterChange('responsible', value)}>
+                                    <SelectTrigger className="h-9">
+                                        <SelectValue placeholder="Responsável" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">Responsável: todos</SelectItem>
+                                        {availableResponsibleNames.map(name => (
+                                            <SelectItem key={name} value={name}>{name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+
+                                <Select value={viewFilters.consultant} onValueChange={(value) => handleFilterChange('consultant', value)}>
+                                    <SelectTrigger className="h-9">
+                                        <SelectValue placeholder="Consulente" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">Consulente: todos</SelectItem>
+                                        {availableConsultants.map(name => (
+                                            <SelectItem key={name} value={name}>{name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+
+                                <div className="flex justify-end pt-1">
+                                    <Button variant="ghost" size="sm" onClick={clearFilters} className="h-8 text-xs text-slate-600 dark:text-slate-300">
+                                        Limpar filtros
+                                    </Button>
+                                </div>
+                            </div>
+
+                            <div className="space-y-2 border-t border-slate-100 dark:border-slate-700 pt-3">
+                                <div className="flex items-center justify-between">
+                                    <p className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                                        <ArrowUpDown className="h-3.5 w-3.5" />
+                                        Ordem por colunas
+                                    </p>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={addSortRule}
+                                        disabled={sortRules.length >= 3}
+                                        className="h-8 gap-1 text-xs"
+                                    >
+                                        <Plus className="h-3.5 w-3.5" />
+                                        Adicionar
+                                    </Button>
+                                </div>
+
+                                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                                    Padrão: urgentes primeiro, depois entrada no órgão dos mais antigos para os mais novos.
+                                </p>
+
+                                {sortRules.map((rule, index) => (
+                                    <div key={`${rule.key}-${index}`} className="grid grid-cols-[1fr_110px_auto] items-center gap-2">
+                                        <Select value={rule.key} onValueChange={(value) => updateSortRuleKey(index, value)}>
+                                            <SelectTrigger className="h-9">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {PROCESS_SORT_OPTIONS.map(option => (
+                                                    <SelectItem key={option.key} value={option.key}>{option.label}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+
+                                        <Select value={rule.direction} onValueChange={(value) => updateSortRuleDirection(index, value)}>
+                                            <SelectTrigger className="h-9">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="asc">Crescente</SelectItem>
+                                                <SelectItem value="desc">Decrescente</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            disabled={sortRules.length <= 1}
+                                            onClick={() => removeSortRule(index)}
+                                            className="h-9 w-9 text-slate-500 dark:text-slate-400"
+                                            aria-label="Remover regra de ordenação"
+                                        >
+                                            <X className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                ))}
+
+                                <p className="text-[11px] leading-snug text-slate-500 dark:text-slate-400 pt-1">
+                                    Na coluna <strong>Arquivados</strong>, a urgência não altera a ordem: no padrão, os
+                                    mais recentemente arquivados aparecem primeiro; com uma ordem sua, ela vale e a
+                                    data de arquivamento desempata.
+                                </p>
+
+                                <div className="flex justify-end pt-1">
+                                    <Button variant="ghost" size="sm" onClick={resetSortRules} className="h-8 text-xs text-slate-600 dark:text-slate-300">
+                                        Resetar ordem
+                                    </Button>
+                                </div>
+                            </div>
+                        </PopoverContent>
+                    </Popover>
+
+                    <select
+                        value={selectedYear}
+                        onChange={(e) => setSelectedYear(Number(e.target.value))}
+                        className="h-10 pl-3 pr-8 rounded-lg border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm text-sm font-semibold focus:ring-2 focus:ring-indigo-500 outline-none"
+                    >
+                        {years.map(y => <option key={y} value={y}>Ano: {y}</option>)}
+                    </select>
+                    <Badge variant="outline" className="text-xs text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700 px-3 py-1">
+                        {filteredProcesses.length} {filteredProcesses.length === 1 ? 'processo' : 'processos'}
+                    </Badge>
+                </div>
+            </div>
+
+            {/* Kanban Board */}
+            <DndContext
+                sensors={sensors}
+                collisionDetection={(args) => {
+                    // Try pointerWithin first (most intuitive for columns)
+                    const pointerCollisions = pointerWithin(args);
+                    if (pointerCollisions.length > 0) return pointerCollisions;
+                    // Fallback to closestCorners for edge cases
+                    return closestCorners(args);
+                }}
+                onDragStart={handleDragStart}
+                onDragEnd={handleDragEnd}
+                onDragCancel={handleDragCancel}
+            >
+                <div className={`grid gap-3 ${KANBAN_COLUMNS.length === 6 ? 'grid-cols-6' : 'grid-cols-5'}`}>
+                    {KANBAN_COLUMNS.map((col) => (
+                        <KanbanColumn
+                            key={col.id}
+                            column={col}
+                            processes={columns[col.id] || []}
+                            onViewDetails={handleViewDetails}
+                            stageAverages={stageAverages}
+                            stageTimeConfig={stageTimeConfig}
+                        />
+                    ))}
+                </div>
+
+                <DragOverlay dropAnimation={null}>
+                    {activeProcess ? (
+                        <KanbanCard process={activeProcess} overlay />
+                    ) : null}
+                </DragOverlay>
+            </DndContext>
+
+            {/* Transition Dialog */}
+            {pendingProcess && (
+                <KanbanTransitionDialog
+                    open={dialogOpen}
+                    onClose={() => {
+                        setDialogOpen(false);
+                        setPendingProcess(null);
+                        setPendingTarget(null);
+                    }}
+                    mode={dialogMode}
+                    process={pendingProcess}
+                    assessors={assessors}
+                    defaultAssessor={isAssessor ? userId : ''}
+                    thirdParties={thirdParties}
+                    onConfirm={handleDialogConfirm}
+                />
+            )}
+
+            {/* Process Detail Sheet (same as Controle de Processos) */}
+            <ProcessDetailSheet
+                process={detailProcess}
+                open={detailOpen}
+                onClose={() => {
+                    setDetailOpen(false);
+                    setDetailProcess(null);
+                }}
+                onEdit={handleEditFromDetail}
+                getProcessField={getProcessField}
+                organization={organization}
+            />
+
+            {/* Edit Process Dialog (same as Controle de Processos) */}
+            {editProcess && (
+                <EditProcessDialog
+                    open={editOpen}
+                    setOpen={(open) => {
+                        setEditOpen(open);
+                        if (!open) setEditProcess(null);
+                    }}
+                    process={editProcess}
+                    members={members}
+                    onSuccess={() => {
+                        setEditOpen(false);
+                        setEditProcess(null);
+                    }}
+                    organizationId={organization.id}
+                    organization={organization}
+                    userRole={userRole}
+                />
+            )}
+        </div>
+    );
+}
+
+// === Droppable Column ===
+function KanbanColumn({ column, processes, onViewDetails, stageAverages, stageTimeConfig }) {
+    const { setNodeRef, isOver } = useDroppable({
+        id: column.id,
+        data: { columnId: column.id },
+    });
+
+    const ColIcon = column.icon;
+
+    return (
+        <div
+            ref={setNodeRef}
+            className={`
+        rounded-xl border flex flex-col
+        ${column.headerBorder}
+        ${isOver ? 'ring-2 ring-indigo-300 dark:ring-indigo-400 bg-indigo-50/30 dark:bg-indigo-500/10' : ''}
+      `}
+            style={{ minHeight: '500px' }}
+        >
+            <div className={`
+        px-4 py-3 rounded-t-xl border-b flex items-center justify-between
+        ${column.headerBg} ${column.headerBorder}
+      `}>
+                <div className="flex items-center gap-2">
+                    <div className={`w-2.5 h-2.5 rounded-full ${column.dotColor}`} />
+                    <ColIcon className={`w-4 h-4 ${column.headerText}`} />
+                    <span className={`text-sm font-bold ${column.headerText}`}>{column.label}</span>
+                </div>
+                <Badge variant="secondary" className="bg-white/60 dark:bg-black/25 text-slate-600 dark:text-white border-0">
+                    {processes.length}
+                </Badge>
+
+
+            </div>
+
+            <div className={`flex-1 p-3 space-y-2 ${column.columnBg} rounded-b-xl overflow-y-auto`}
+                style={{ maxHeight: 'calc(100vh - 280px)' }}
+            >
+                <SortableContext items={processes.map(p => p.id)} strategy={verticalListSortingStrategy}>
+                    {processes.length > 0 ? (
+                        processes.map(p => (
+                            <KanbanCard key={p.id} process={p} columnId={column.id} onViewDetails={onViewDetails} stageAverages={stageAverages} stageTimeConfig={stageTimeConfig} />
+                        ))
+                    ) : (
+                        <EmptyState
+                            icon={ColIcon}
+                            title={column.emptyText}
+                            description="Não há processos nesta etapa do fluxo no momento."
+                            className="py-12 border-none shadow-none bg-transparent"
+                        />
+                    )}
+                </SortableContext>
+            </div>
+        </div>
+    );
+}
