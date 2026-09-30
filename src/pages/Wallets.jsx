@@ -123,7 +123,6 @@ export default function Wallets() {
 
     return (
         <div className="p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
-            {/* Header */}
             <div className="flex flex-wrap items-end justify-between gap-4">
                 <div>
                     <Badge className="bg-[#E5E0D5] text-[#0B1F3A] border-[#0B1F3A]/20 mb-3">
@@ -138,7 +137,6 @@ export default function Wallets() {
                 </Button>
             </div>
 
-            {/* KPIs */}
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                 <Card className="border-[#E7E5E2]"><CardContent className="p-4">
                     <div className="text-xs text-[#6B6B66] uppercase tracking-wide">Total</div>
@@ -162,7 +160,6 @@ export default function Wallets() {
                 </CardContent></Card>
             </div>
 
-            {/* Filters */}
             <Card className="border-[#E7E5E2] bg-white">
                 <CardContent className="p-4">
                     <div className="flex flex-wrap gap-3 items-center">
@@ -204,7 +201,6 @@ export default function Wallets() {
                 </CardContent>
             </Card>
 
-            {/* Wallets Table */}
             <Card className="border-[#E7E5E2] bg-white overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full">
@@ -214,8 +210,9 @@ export default function Wallets() {
                                 <th className="text-left p-3 font-medium">Label</th>
                                 <th className="text-left p-3 font-medium">Chain</th>
                                 <th className="text-left p-3 font-medium">Tipo</th>
-                                <th className="text-left p-3 font-medium">Risco</th>
-                                <th className="text-right p-3 font-medium">Saldo (USD)</th>
+                                <th className="text-right p-3 font-medium">Tx totais</th>
+                                <th className="text-right p-3 font-medium">Tx 30d</th>
+                                <th className="text-center p-3 font-medium">Risco</th>
                                 <th className="text-center p-3 font-medium">Status</th>
                                 <th className="text-center p-3 font-medium">Ações</th>
                             </tr>
@@ -249,14 +246,17 @@ export default function Wallets() {
                                             <Badge variant="outline" className="font-mono text-[10px]">{w.chain}</Badge>
                                         </td>
                                         <td className="p-3 text-sm text-[#6B6B66]">{WALLET_KIND_LABELS[w.kind] || w.kind}</td>
+                                        <td className="p-3 text-right text-sm font-mono text-[#0B1F3A]">
+                                            {w.tx_count_total.toLocaleString('pt-BR')}
+                                        </td>
+                                        <td className="p-3 text-right text-sm font-mono text-[#6B6B66]">
+                                            {w.tx_count_30d}
+                                        </td>
                                         <td className="p-3">
-                                            <div className="flex items-center gap-2">
+                                            <div className="flex items-center justify-center gap-2">
                                                 <div className={`w-2 h-2 rounded-full ${r.dot}`}></div>
                                                 <span className={`text-xs font-semibold ${r.text}`}>{w.risk_score}</span>
                                             </div>
-                                        </td>
-                                        <td className="p-3 text-right text-sm font-mono">
-                                            ${w.balance_usd.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}
                                         </td>
                                         <td className="p-3 text-center">
                                             {w.sanctioned ? (
@@ -286,7 +286,6 @@ export default function Wallets() {
                 </p>
             )}
 
-            {/* Add dialog */}
             <Dialog open={addOpen} onOpenChange={setAddOpen}>
                 <DialogContent>
                     <DialogHeader><DialogTitle>Adicionar wallet ao monitoramento</DialogTitle></DialogHeader>

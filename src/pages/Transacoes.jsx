@@ -24,13 +24,6 @@ function getExplorerUrl(chain, hash) {
     return `${c.explorer}/#/transaction/${hash}`;
 }
 
-function formatUSD(value) {
-    if (value >= 1e9) return `$${(value / 1e9).toFixed(2)}B`;
-    if (value >= 1e6) return `$${(value / 1e6).toFixed(2)}M`;
-    if (value >= 1e3) return `$${(value / 1e3).toFixed(2)}k`;
-    return `$${value.toFixed(2)}`;
-}
-
 export default function Transacoes() {
     const [transactions, setTransactions] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -77,7 +70,6 @@ export default function Transacoes() {
         return {
             total: transactions.length,
             flagged: transactions.filter((t) => t.flagged).length,
-            total_volume: transactions.reduce((s, t) => s + t.value_usd, 0),
             confirmed: transactions.filter((t) => t.status === 'confirmed').length,
         };
     }, [transactions]);
@@ -97,7 +89,6 @@ export default function Transacoes() {
 
     return (
         <div className="p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
-            {/* Header */}
             <div className="flex flex-wrap items-end justify-between gap-4">
                 <div>
                     <Badge className="bg-[#E5E0D5] text-[#0B1F3A] border-[#0B1F3A]/20 mb-3">
@@ -109,15 +100,10 @@ export default function Transacoes() {
                 </div>
             </div>
 
-            {/* KPIs */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                 <Card className="border-[#E7E5E2]"><CardContent className="p-4">
                     <div className="text-xs text-[#6B6B66] uppercase tracking-wide">Total indexadas</div>
                     <div className="text-2xl font-bold text-[#0B1F3A]">{stats.total.toLocaleString('pt-BR')}</div>
-                </CardContent></Card>
-                <Card className="border-[#E7E5E2]"><CardContent className="p-4">
-                    <div className="text-xs text-[#6B6B66] uppercase tracking-wide">Volume total</div>
-                    <div className="text-2xl font-bold text-blue-600">{formatUSD(stats.total_volume)}</div>
                 </CardContent></Card>
                 <Card className="border-[#E7E5E2]"><CardContent className="p-4">
                     <div className="text-xs text-[#6B6B66] uppercase tracking-wide">Sinalizadas</div>
@@ -131,7 +117,6 @@ export default function Transacoes() {
                 </CardContent></Card>
             </div>
 
-            {/* Filters */}
             <Card className="border-[#E7E5E2] bg-white">
                 <CardContent className="p-4">
                     <div className="flex flex-wrap gap-3 items-center">
@@ -164,7 +149,6 @@ export default function Transacoes() {
                 </CardContent>
             </Card>
 
-            {/* Transactions List */}
             <Card className="border-[#E7E5E2] bg-white overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-sm">
@@ -173,8 +157,6 @@ export default function Transacoes() {
                                 <th className="text-left p-3 font-medium">Hash</th>
                                 <th className="text-left p-3 font-medium">De → Para</th>
                                 <th className="text-left p-3 font-medium">Chain</th>
-                                <th className="text-right p-3 font-medium">Valor</th>
-                                <th className="text-right p-3 font-medium">USD</th>
                                 <th className="text-left p-3 font-medium">Bloco</th>
                                 <th className="text-left p-3 font-medium">Quando</th>
                                 <th className="text-center p-3 font-medium">Risco</th>
@@ -206,8 +188,6 @@ export default function Transacoes() {
                                     <td className="p-3">
                                         <Badge variant="outline" className="font-mono text-[10px]">{tx.chain}</Badge>
                                     </td>
-                                    <td className="p-3 text-right font-mono">{tx.value.toFixed(4)}</td>
-                                    <td className="p-3 text-right font-mono font-semibold text-[#0B1F3A]">{formatUSD(tx.value_usd)}</td>
                                     <td className="p-3 font-mono text-xs">#{tx.block_height.toLocaleString('pt-BR')}</td>
                                     <td className="p-3 text-xs text-[#6B6B66]">{new Date(tx.timestamp).toLocaleString('pt-BR')}</td>
                                     <td className="p-3 text-center">
@@ -234,7 +214,6 @@ export default function Transacoes() {
                 </div>
             </Card>
 
-            {/* Pagination */}
             {totalPages > 1 && (
                 <div className="flex items-center justify-center gap-2">
                     <Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage(page - 1)}>

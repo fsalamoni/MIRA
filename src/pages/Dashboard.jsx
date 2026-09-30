@@ -28,10 +28,10 @@ const KPI_CONFIG = {
 };
 
 const MODULE_QUICK_ACCESS = [
-    { name: 'Investigações', path: '/Investigacoes', icon: FileSearch, desc: '23 casos em andamento' },
-    { name: 'Wallets', path: '/Wallets', icon: Eye, desc: '87 wallets monitoradas' },
-    { name: 'Transações', path: '/Transacoes', icon: Coins, desc: '5.4K transações rastreadas' },
-    { name: 'Alertas', path: '/Alertas', icon: Bell, desc: '7 alertas pendentes' },
+    { name: 'Investigações', path: '/Investigacoes', icon: FileSearch, desc: 'Casos em andamento' },
+    { name: 'Wallets', path: '/Wallets', icon: Eye, desc: 'Endereços sob observação' },
+    { name: 'Transações', path: '/Transacoes', icon: Coins, desc: 'Base indexada' },
+    { name: 'Alertas', path: '/Alertas', icon: Bell, desc: 'Pendentes' },
     { name: 'Rastreamento', path: '/Rastreamento', icon: GitBranch, desc: 'Visualização de grafos' },
     { name: 'Chain Analytics', path: '/ChainAnalytics', icon: Network, desc: 'Clusters e labels' },
     { name: 'OSINT', path: '/OSINT', icon: ScanSearch, desc: 'Fontes abertas' },
@@ -78,7 +78,6 @@ export default function Dashboard() {
 
     return (
         <div className="p-6 lg:p-8 max-w-7xl mx-auto space-y-8">
-            {/* Header */}
             <div className="flex flex-wrap items-end justify-between gap-4">
                 <div>
                     <Badge className="bg-[#E5E0D5] text-[#0B1F3A] border-[#0B1F3A]/20 mb-3">
@@ -98,7 +97,6 @@ export default function Dashboard() {
                 </Button>
             </div>
 
-            {/* KPIs */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {Object.entries(KPI_CONFIG).map(([key, cfg]) => {
                     const value = metrics[key];
@@ -111,7 +109,7 @@ export default function Dashboard() {
                                     </div>
                                     <Badge variant="ghost" className="text-xs text-emerald-600 bg-emerald-50">
                                         <TrendingUp className="w-3 h-3 mr-1" />
-                                        +{Math.floor(Math.random() * 20)}%
+                                        +
                                     </Badge>
                                 </div>
                                 <div className="text-3xl font-bold text-[#0B1F3A] mb-1">{value}</div>
@@ -122,7 +120,6 @@ export default function Dashboard() {
                 })}
             </div>
 
-            {/* Alerts by severity */}
             <div className="grid lg:grid-cols-3 gap-6">
                 <Card className="border-[#E7E5E2] bg-white lg:col-span-2">
                     <CardHeader>
@@ -155,7 +152,7 @@ export default function Dashboard() {
                 <Card className="border-[#E7E5E2] bg-white">
                     <CardHeader>
                         <CardTitle className="text-[#0B1F3A]">Chains cobertas</CardTitle>
-                        <CardDescription>Volume rastreado por chain</CardDescription>
+                        <CardDescription>Transações indexadas por chain</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-2">
                         {metrics.top_chains_by_volume.slice(0, 5).map((c) => (
@@ -173,7 +170,6 @@ export default function Dashboard() {
                 </Card>
             </div>
 
-            {/* Quick Access Modules */}
             <div>
                 <h2 className="text-xl font-bold text-[#0B1F3A] mb-4">Módulos</h2>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -193,7 +189,6 @@ export default function Dashboard() {
                 </div>
             </div>
 
-            {/* Recent cases + alerts */}
             <div className="grid lg:grid-cols-2 gap-6">
                 <Card className="border-[#E7E5E2] bg-white">
                     <CardHeader>

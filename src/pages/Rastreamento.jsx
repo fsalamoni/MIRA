@@ -51,7 +51,6 @@ export default function Rastreamento() {
         }
     };
 
-    // Render canvas-based graph (simple force-directed)
     useEffect(() => {
         if (!graph || !canvasRef.current) return;
         const canvas = canvasRef.current;
@@ -62,7 +61,6 @@ export default function Rastreamento() {
         const w = canvas.offsetWidth;
         const h = canvas.offsetHeight;
 
-        // Position nodes in a circle initially with random radial offset
         const cx = w / 2;
         const cy = h / 2;
         const R = Math.min(w, h) * 0.35;
@@ -78,9 +76,7 @@ export default function Rastreamento() {
             };
         });
 
-        // Simple simulation (10 iterations)
         for (let iter = 0; iter < 50; iter++) {
-            // Repulsion between nodes
             for (let i = 0; i < nodes.length; i++) {
                 for (let j = i + 1; j < nodes.length; j++) {
                     const dx = nodes[j].x - nodes[i].x;
@@ -95,7 +91,6 @@ export default function Rastreamento() {
                     nodes[j].vy += fy;
                 }
             }
-            // Spring force on edges
             graph.edges.forEach((e) => {
                 const src = nodes.find((n) => n.id === e.source);
                 const tgt = nodes.find((n) => n.id === e.target);
@@ -112,7 +107,6 @@ export default function Rastreamento() {
                 tgt.vx -= fx;
                 tgt.vy -= fy;
             });
-            // Apply velocity and dampen
             nodes.forEach((n) => {
                 n.vx *= 0.8;
                 n.vy *= 0.8;
@@ -123,10 +117,8 @@ export default function Rastreamento() {
             });
         }
 
-        // Draw
         ctx.clearRect(0, 0, w, h);
 
-        // Edges first
         graph.edges.forEach((e) => {
             const src = nodes.find((n) => n.id === e.source);
             const tgt = nodes.find((n) => n.id === e.target);
@@ -137,7 +129,6 @@ export default function Rastreamento() {
             ctx.strokeStyle = e.flagged ? '#dc2626' : '#94a3b8';
             ctx.lineWidth = e.flagged ? 1.5 : 0.8;
             ctx.stroke();
-            // Arrow
             const angle = Math.atan2(tgt.y - src.y, tgt.x - src.x);
             const arrowLen = 8;
             ctx.beginPath();
@@ -149,7 +140,6 @@ export default function Rastreamento() {
             ctx.fill();
         });
 
-        // Nodes
         nodes.forEach((n) => {
             const r = 12 + (n.risk_score || 0) / 10;
             ctx.beginPath();
@@ -160,14 +150,12 @@ export default function Rastreamento() {
             ctx.lineWidth = 2;
             ctx.stroke();
 
-            // Label
             ctx.fillStyle = '#18181B';
             ctx.font = '10px sans-serif';
             ctx.textAlign = 'center';
             ctx.fillText(n.label?.slice(0, 12) || '', n.x, n.y + r + 12);
         });
 
-        // Save nodes for click handling
         canvasRef.current._nodes = nodes;
     }, [graph]);
 
@@ -201,7 +189,6 @@ export default function Rastreamento() {
                 </div>
             </div>
 
-            {/* Control Panel */}
             <Card className="border-[#E7E5E2] bg-white">
                 <CardContent className="p-4">
                     <div className="flex flex-wrap gap-3 items-end">
@@ -240,7 +227,6 @@ export default function Rastreamento() {
                 </CardContent>
             </Card>
 
-            {/* Graph Canvas */}
             <Card className="border-[#E7E5E2] bg-white overflow-hidden">
                 <CardContent className="p-0">
                     {graph ? (
@@ -277,7 +263,6 @@ export default function Rastreamento() {
                 </CardContent>
             </Card>
 
-            {/* Selected node details */}
             {selectedNode && (
                 <Card className="border-[#E7E5E2] bg-white">
                     <CardContent className="p-5">

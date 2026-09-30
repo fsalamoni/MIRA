@@ -20,7 +20,7 @@ const FAQ = [
         items: [
             { q: 'O que é a MIRA?', a: 'MIRA é uma plataforma de fiscalização e controle da movimentação de criptomoedas, baseada em dados públicos de blockchains.' },
             { q: 'Como funciona o protótipo?', a: 'Esta versão usa dados mockados (sintéticos) para demonstrar todas as funcionalidades. Em produção, dados reais viriam de APIs como Blockchair, Etherscan, TronGrid.' },
-            { q: 'Quanto custa em produção?', a: 'Estimativa: ~US$ 30/mês para 100k transações indexadas. Compare com Chainalysis Reactor (~US$ 100k/ano por analista).' },
+            { q: 'A plataforma é gratuita?', a: 'O código da MIRA é open source sob licença de uso institucional. Os dados on-chain utilizados são públicos por design das blockchains (não há custo de aquisição). A infraestrutura recomendada é Firebase Hosting, com custo operacional mínimo para o volume típico de uso institucional.' },
         ],
     },
     {

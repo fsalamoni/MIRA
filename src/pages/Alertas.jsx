@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import {
     Bell,
-    CheckCircle2,
     Search,
     Clock,
+    CheckCircle2,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -94,7 +94,6 @@ export default function Alertas() {
 
     return (
         <div className="p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
-            {/* Header */}
             <div className="flex flex-wrap items-end justify-between gap-4">
                 <div>
                     <Badge className="bg-[#E5E0D5] text-[#0B1F3A] border-[#0B1F3A]/20 mb-3">
@@ -106,7 +105,6 @@ export default function Alertas() {
                 </div>
             </div>
 
-            {/* KPIs */}
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                 <Card className="border-[#E7E5E2]"><CardContent className="p-4">
                     <div className="text-xs text-[#6B6B66] uppercase tracking-wide">Total</div>
@@ -130,7 +128,6 @@ export default function Alertas() {
                 </CardContent></Card>
             </div>
 
-            {/* Filters */}
             <Card className="border-[#E7E5E2] bg-white">
                 <CardContent className="p-4">
                     <div className="flex flex-wrap gap-3 items-center">
@@ -165,7 +162,6 @@ export default function Alertas() {
                 </CardContent>
             </Card>
 
-            {/* Alerts List */}
             <div className="space-y-3">
                 {filtered.length === 0 && (
                     <Card className="border-[#E7E5E2] bg-white">
@@ -199,9 +195,6 @@ export default function Alertas() {
                                         <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-[#6B6B66]">
                                             <span className="font-mono">tx: {a.tx_hash.slice(0, 18)}...</span>
                                             <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {new Date(a.triggered_at).toLocaleString('pt-BR')}</span>
-                                            {a.metadata?.value_usd && (
-                                                <span className="font-mono">${a.metadata.value_usd.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</span>
-                                            )}
                                         </div>
                                     </div>
                                     {a.status === 'open' && (

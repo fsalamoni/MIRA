@@ -36,7 +36,7 @@ const FEATURES = [
     {
         icon: Bell,
         title: 'Alertas em tempo real',
-        description: '11 regras prontas: threshold de valor, mixer tocado, structuring, ativação de wallet dormente, endereços sancionados, e mais.',
+        description: '11 regras prontas: threshold, mixer tocado, structuring, ativação de wallet dormente, endereços sancionados, e mais.',
     },
     {
         icon: FileSearch,
@@ -46,7 +46,7 @@ const FEATURES = [
     {
         icon: Database,
         title: 'Sem API paga',
-        description: 'Dados on-chain públicos. Sem dependência de Chainalysis, Elliptic ou TRM Labs. Custo de operação: centavos por transação.',
+        description: 'Dados on-chain públicos. Sem dependência de Chainalysis, Elliptic ou TRM Labs.',
     },
     {
         icon: Lock,
@@ -57,7 +57,7 @@ const FEATURES = [
 
 const MODULES = [
     { name: 'Investigações', icon: FileSearch, color: 'text-emerald-600' },
-    { name: 'Wallets', icon: Wallet, color: 'text-blue-600' },
+    { name: 'Wallets', icon: Eye, color: 'text-blue-600' },
     { name: 'Transações', icon: Coins, color: 'text-amber-600' },
     { name: 'Alertas', icon: Bell, color: 'text-red-600' },
     { name: 'Rastreamento', icon: GitBranch, color: 'text-violet-600' },
@@ -73,7 +73,7 @@ const USE_CASES = [
     },
     {
         title: 'Ransomware',
-        desc: 'Siga o resgate pago por vítima até a exchange de destino, com alert automático em wallets blacklisted.',
+        desc: 'Siga o resgate pago por vítima até a exchange de destino, com alerta automático em wallets blacklisted.',
     },
     {
         title: 'Fraudes e pirâmides',
@@ -87,7 +87,7 @@ const USE_CASES = [
 
 const STATS = [
     { value: '7+', label: 'chains suportadas' },
-    { value: '< US$ 0.001', label: 'custo por transação' },
+    { value: 'público', label: 'acesso a dados on-chain' },
     { value: '11', label: 'regras de alerta prontas' },
     { value: 'LGPD', label: 'compliance nativo' },
 ];
@@ -171,7 +171,6 @@ export default function Landing() {
                         <div className="relative">
                             <Card className="border-[#E7E5E2] shadow-2xl bg-white">
                                 <CardContent className="p-0">
-                                    {/* Mock dashboard */}
                                     <div className="border-b border-[#E7E5E2] p-4 flex items-center justify-between bg-[#FAFAF9]">
                                         <div className="flex items-center gap-2">
                                             <div className="w-2 h-2 rounded-full bg-red-500"></div>
@@ -330,12 +329,11 @@ export default function Landing() {
                         <div>
                             <Badge className="bg-[#0B1F3A] text-white mb-4">Tecnologia</Badge>
                             <h2 className="text-3xl md:text-4xl font-bold text-[#0B1F3A] mb-4 tracking-tight">
-                                Stack aberto. Custo mínimo.
+                                Stack aberto. Plataforma auditável.
                             </h2>
                             <p className="text-lg text-[#6B6B66] mb-6 leading-relaxed">
                                 A MIRA roda em Firebase Hosting com Cloud Functions v2 e Firestore.
-                                O custo estimado de operação é inferior a R$ 200/mês para até
-                                100 mil transações indexadas.
+                                Construída para uso institucional por órgãos de controle e persecução.
                             </p>
                             <ul className="space-y-3">
                                 {[
@@ -357,28 +355,22 @@ export default function Landing() {
                             <CardContent className="p-6">
                                 <div className="flex items-center gap-2 mb-4">
                                     <Activity className="w-5 h-5 text-[#0B1F3A]" />
-                                    <h3 className="font-bold text-[#0B1F3A]">Estimativa de operação</h3>
+                                    <h3 className="font-bold text-[#0B1F3A]">Capacidades da plataforma</h3>
                                 </div>
                                 <div className="space-y-3">
                                     {[
-                                        { item: 'Hosting (Firebase)', value: 'US$ 5/mês' },
-                                        { item: 'Cloud Functions', value: 'US$ 10/mês' },
-                                        { item: 'Firestore (100k reads/dia)', value: 'US$ 12/mês' },
-                                        { item: 'Storage (evidências)', value: 'US$ 5/mês' },
-                                        { item: 'Blockchair API (opcional)', value: 'US$ 0–20/mês' },
+                                        { item: 'Chains suportadas', value: 'BTC, ETH, USDT, USDC, Tron, BNB' },
+                                        { item: 'Profundidade do grafo', value: 'Até 4 hops, 500 nós' },
+                                        { item: 'Heurísticas de cluster', value: '7 (multi-input, peel chain, bridge...)' },
+                                        { item: 'Regras de alerta', value: '11 prontas + customizadas' },
+                                        { item: 'Fontes OSINT', value: '11 integradas' },
+                                        { item: 'Templates de laudo', value: '6 incluindo pericial' },
                                     ].map((row) => (
                                         <div key={row.item} className="flex justify-between text-sm py-2 border-b border-[#E7E5E2] last:border-0">
                                             <span className="text-[#6B6B66]">{row.item}</span>
-                                            <span className="font-mono font-semibold text-[#0B1F3A]">{row.value}</span>
+                                            <span className="font-mono font-semibold text-[#0B1F3A] text-right max-w-[60%]">{row.value}</span>
                                         </div>
                                     ))}
-                                    <div className="flex justify-between text-sm py-2 pt-3 border-t-2 border-[#0B1F3A]">
-                                        <span className="font-bold text-[#0B1F3A]">Total estimado</span>
-                                        <span className="font-mono font-bold text-[#0B1F3A]">≈ US$ 32/mês</span>
-                                    </div>
-                                    <div className="text-xs text-[#6B6B66] mt-2">
-                                        Compare: Chainalysis Reactor ≈ US$ 100k/ano por analista.
-                                    </div>
                                 </div>
                             </CardContent>
                         </Card>

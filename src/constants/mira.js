@@ -10,38 +10,33 @@ export const SUPPORTED_CHAINS = {
         name: 'Bitcoin',
         family: 'utxo',
         symbol: '₿',
-        decimals: 8,
         explorer: 'https://blockchair.com/bitcoin',
         apiEndpoint: 'https://blockchair.com/bitcoin',
         addressPrefixes: ['1', '3', 'bc1'],
-        typicalTxFields: ['inputs', 'outputs', 'value', 'fee', 'confirmations'],
+        typicalTxFields: ['inputs', 'outputs', 'fee', 'confirmations'],
         avgBlockTime: 600, // segundos (10 min)
-        avgFee: 50, // sat/vB
     },
     ETH: {
         code: 'ETH',
         name: 'Ethereum',
         family: 'account',
         symbol: 'Ξ',
-        decimals: 18,
         explorer: 'https://etherscan.io',
         apiEndpoint: 'https://api.etherscan.io/api',
         addressPrefixes: ['0x'],
-        typicalTxFields: ['from', 'to', 'value', 'gas', 'gasUsed', 'input', 'logs'],
+        typicalTxFields: ['from', 'to', 'gas', 'gasUsed', 'input', 'logs'],
         avgBlockTime: 12,
-        avgFee: 25, // gwei
     },
     USDT_ETH: {
         code: 'USDT_ETH',
         name: 'Tether (ERC-20)',
         family: 'account',
         symbol: '₮',
-        decimals: 6,
         explorer: 'https://etherscan.io/token/0xdac17f958d2ee523a2206206994597c13d831ec7',
         apiEndpoint: 'https://api.etherscan.io/api',
         addressPrefixes: ['0x'],
         contractAddress: '0xdac17f958d2ee523a2206206994597c13d831ec7',
-        typicalTxFields: ['from', 'to', 'value', 'gas', 'gasUsed', 'input'],
+        typicalTxFields: ['from', 'to', 'gas', 'gasUsed', 'input'],
         avgBlockTime: 12,
     },
     USDC_ETH: {
@@ -49,12 +44,11 @@ export const SUPPORTED_CHAINS = {
         name: 'USD Coin (ERC-20)',
         family: 'account',
         symbol: '$',
-        decimals: 6,
         explorer: 'https://etherscan.io/token/0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
         apiEndpoint: 'https://api.etherscan.io/api',
         addressPrefixes: ['0x'],
         contractAddress: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
-        typicalTxFields: ['from', 'to', 'value', 'gas', 'gasUsed', 'input'],
+        typicalTxFields: ['from', 'to', 'gas', 'gasUsed', 'input'],
         avgBlockTime: 12,
     },
     TRX: {
@@ -62,11 +56,10 @@ export const SUPPORTED_CHAINS = {
         name: 'Tron',
         family: 'account',
         symbol: 'T',
-        decimals: 6,
         explorer: 'https://tronscan.org',
         apiEndpoint: 'https://api.trongrid.io',
         addressPrefixes: ['T'],
-        typicalTxFields: ['from', 'to', 'value', 'fee', 'data'],
+        typicalTxFields: ['from', 'to', 'data'],
         avgBlockTime: 3,
     },
     USDT_TRC20: {
@@ -74,12 +67,11 @@ export const SUPPORTED_CHAINS = {
         name: 'Tether (TRC-20)',
         family: 'account',
         symbol: '₮',
-        decimals: 6,
         explorer: 'https://tronscan.org/token/TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t',
         apiEndpoint: 'https://api.trongrid.io',
         addressPrefixes: ['T'],
         contractAddress: 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t',
-        typicalTxFields: ['from', 'to', 'value', 'fee'],
+        typicalTxFields: ['from', 'to'],
         avgBlockTime: 3,
     },
     BNB: {
@@ -87,11 +79,10 @@ export const SUPPORTED_CHAINS = {
         name: 'BNB Chain',
         family: 'account',
         symbol: 'BNB',
-        decimals: 18,
         explorer: 'https://bscscan.com',
         apiEndpoint: 'https://api.bscscan.com/api',
         addressPrefixes: ['0x'],
-        typicalTxFields: ['from', 'to', 'value', 'gas', 'gasUsed', 'input'],
+        typicalTxFields: ['from', 'to', 'gas', 'gasUsed', 'input'],
         avgBlockTime: 3,
     },
 };
@@ -219,7 +210,7 @@ export const ALERT_RULE_TYPES = {
 };
 
 export const ALERT_RULE_LABELS = {
-    [ALERT_RULE_TYPES.VALUE_THRESHOLD]: 'Valor acima de limite',
+    [ALERT_RULE_TYPES.VALUE_THRESHOLD]: 'Limite de quantidade',
     [ALERT_RULE_TYPES.WALLET_INTERACTION]: 'Interação com wallet monitorada',
     [ALERT_RULE_TYPES.MIXER_TOUCHED]: 'Passou por mixer',
     [ALERT_RULE_TYPES.NEW_WALLET_FUNDED]: 'Wallet nova recebeu funding',
@@ -234,13 +225,13 @@ export const ALERT_RULE_LABELS = {
 
 // ========== HEURÍSTICAS DE CLUSTERIZAÇÃO ==========
 export const CLUSTERING_HEURISTICS = {
-    MULTI_INPUT: 'multi_input',           // 2+ inputs na mesma tx → mesmo dono
-    CHANGE_DETECTION: 'change_detection', // detectar change address
-    PEEL_CHAIN: 'peel_chain',             // padrão 1 entrada grande → várias saídas + change
+    MULTI_INPUT: 'multi_input',
+    CHANGE_DETECTION: 'change_detection',
+    PEEL_CHAIN: 'peel_chain',
     CO_Spending: 'co_spending',
-    TEMPORAL_CORRELATION: 'temporal',     // timing entre chains diferentes
-    AMOUNT_CORRELATION: 'amount',         // valor idêntico = correlação
-    BRIDGE_MINT_BURN: 'bridge',           // lock/mint em bridge
+    TEMPORAL_CORRELATION: 'temporal',
+    AMOUNT_CORRELATION: 'amount',
+    BRIDGE_MINT_BURN: 'bridge',
 };
 
 export const CLUSTERING_HEURISTIC_LABELS = {
@@ -249,7 +240,7 @@ export const CLUSTERING_HEURISTIC_LABELS = {
     [CLUSTERING_HEURISTICS.PEEL_CHAIN]: 'Peel chain',
     [CLUSTERING_HEURISTICS.CO_Spending]: 'Co-spending',
     [CLUSTERING_HEURISTICS.TEMPORAL_CORRELATION]: 'Correlação temporal',
-    [CLUSTERING_HEURISTICS.AMOUNT_CORRELATION]: 'Correlação de valor',
+    [CLUSTERING_HEURISTICS.AMOUNT_CORRELATION]: 'Correlação de quantidade',
     [CLUSTERING_HEURISTICS.BRIDGE_MINT_BURN]: 'Bridge lock/mint',
 };
 
@@ -307,12 +298,12 @@ export const OSINT_SOURCE_LABELS = {
 
 // ========== TIPOS DE RELATÓRIO ==========
 export const REPORT_TYPES = {
-    TRACKING: 'tracking',           // rastreamento de fundos
-    CLUSTERING: 'clustering',       // análise de cluster
-    WALLET_PROFILE: 'wallet_profile', // perfil de wallet
-    PERIODIC: 'periodic',           // relatório periódico
-    COURT: 'court',                 // laudo para instrução processual
-    SUMMARY: 'summary',             // resumo executivo
+    TRACKING: 'tracking',
+    CLUSTERING: 'clustering',
+    WALLET_PROFILE: 'wallet_profile',
+    PERIODIC: 'periodic',
+    COURT: 'court',
+    SUMMARY: 'summary',
 };
 
 // ========== TIPOS DE PROVIDER / PARCERIA ==========
@@ -344,11 +335,11 @@ export const PROVIDER_KIND_LABELS = {
 export const MIRA_LIMITS = {
     MAX_WALLETS_PER_QUERY: 100,
     MAX_TRANSACTIONS_PER_QUERY: 500,
-    MAX_GRAPH_DEPTH: 4, // profundidade máxima do grafo de rastreamento
+    MAX_GRAPH_DEPTH: 4,
     MAX_GRAPH_NODES: 500,
     MAX_LABEL_BATCH: 50,
     MAX_EVIDENCE_PER_CASE: 500,
-    MAX_FILE_SIZE_BYTES: 25 * 1024 * 1024, // 25MB para evidências
+    MAX_FILE_SIZE_BYTES: 25 * 1024 * 1024,
     MAX_OSINT_BATCH: 100,
 };
 
@@ -358,15 +349,11 @@ export const DASHBOARD_KPIS = {
     MONITORED_WALLETS: 'monitored_wallets',
     TRANSACTIONS_24H: 'transactions_24h',
     ALERTS_OPEN: 'alerts_open',
-    TOTAL_TRACKED_BTC: 'total_tracked_btc',
-    TOTAL_TRACKED_USD: 'total_tracked_usd',
     CHAINS_COVERED: 'chains_covered',
     RISK_SCORE_AVG: 'risk_score_avg',
 };
 
 // ========== CONFIGURAÇÕES DO MOCK DE DADOS ==========
-// Para o protótipo, geramos dados fictícios que se parecem com dados reais
-// (endereços válidos, hashes plausíveis, valores realistas) sem expor dados reais.
 export const MOCK_CONFIG = {
     SEED: 'mira-prototype-2026',
     NUM_MOCK_WALLETS: 250,

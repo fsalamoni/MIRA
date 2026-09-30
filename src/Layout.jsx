@@ -24,9 +24,6 @@ import {
     ChevronLeft,
     ChevronRight,
 } from 'lucide-react';
-import Logo from '@/components/Logo';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
 const PUBLIC_PAGES = ['Landing', 'Help', 'Terms', 'Login'];

@@ -50,7 +50,7 @@ exports.migrateMemberFunctions = (0, https_1.onCall)({ region: 'southamerica-eas
     let cursor = null;
     const PAGE_SIZE = 200;
     // Loop em páginas para não carregar tudo na memória.
-    // eslint-disable-next-line no-constant-condition
+     
     while (true) {
         let q = db.collection('userOrganizations')
             .orderBy(admin.firestore.FieldPath.documentId())

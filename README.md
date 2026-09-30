@@ -5,10 +5,10 @@
 
 ## 🎯 Missão
 
-Fornecer ao Ministério Público e órgãos de controle uma ferramenta **barata,
-pública e auditável** para rastrear, fiscalizar e investigar a movimentação de
-ativos em blockchains públicas — sem depender de APIs externas pagas (Chainalysis,
-Elliptic, TRM Labs) ou de ferramentas prontas comerciais.
+Fornecer ao Ministério Público e órgãos de controle uma ferramenta
+**pública e auditável** para rastrear, fiscalizar e investigar a movimentação
+de ativos em blockchains públicas — sem depender de APIs externas pagas
+(Chainalysis, Elliptic, TRM Labs) ou de ferramentas prontas comerciais.
 
 ## 🚀 Tecnologias
 
@@ -25,7 +25,7 @@ Elliptic, TRM Labs) ou de ferramentas prontas comerciais.
 - ✅ **Investigações/Casos** — gestão de casos de suspeita de movimentação ilícita
 - ✅ **Wallets Monitoradas** — base de endereços sob observação contínua
 - ✅ **Transações** — base indexada de transações em múltiplas chains (BTC, ETH, USDT)
-- ✅ **Alertas** — notificações automáticas baseadas em regras (valor, origem, destino, padrões)
+- ✅ **Alertas** — notificações automáticas baseadas em regras (origem, destino, padrões)
 - ✅ **Rastreamento** — visualização de grafos de movimentações
 - ✅ **Chain Analytics** — clustering de endereços, labels, heurísticas de forense
 - ✅ **OSINT** — fontes abertas (scam reports, BitcoinAbuse, Etherscan labels)

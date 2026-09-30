@@ -1,10 +1,11 @@
 // ============================================================================
-// MIRA — Mock Data Service
+// MIRA — Mock Data Service (versão SEM valores monetários)
 // ----------------------------------------------------------------------------
 // Para o protótipo, geramos dados fictícios determinísticos (seeded RNG) que
-// se parecem com dados reais de blockchain. Quando o deploy em produção
-// integrar com APIs reais (Blockchair, Etherscan, etc.), basta trocar a fonte
-// mantendo a mesma interface deste service.
+// se parecem com dados reais de blockchain — endereços válidos, hashes
+// plausíveis, timestamps realistas — mas SEM envolver nenhum valor monetário.
+// Quando o deploy em produção integrar com APIs reais (Blockchair, Etherscan,
+// etc.), basta trocar a fonte mantendo a mesma interface deste service.
 // ============================================================================
 
 import {
@@ -33,18 +34,9 @@ const rng = mulberry32(
 );
 
 const pick = (arr) => arr[Math.floor(rng() * arr.length)];
-const pickN = (arr, n) => {
-    const copy = [...arr];
-    const out = [];
-    while (out.length < n && copy.length) {
-        const idx = Math.floor(rng() * copy.length);
-        out.push(copy.splice(idx, 1)[0]);
-    }
-    return out;
-};
 const randInt = (min, max) => Math.floor(rng() * (max - min + 1)) + min;
 
-// ---------- Helpers de geração realista ----------
+// ---------- Helpers de geração realista (somente estrutura, sem valores) ----------
 function generateBtcAddress() {
     const chars = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
     const prefix = pick(['1', '3', 'bc1']);
@@ -123,7 +115,7 @@ const KNOWN_LABELS = [
     { address: 'TXyzAbC9dEf1234567890ABCDEf1234567890ABC', label: 'TronEnergy', kind: WALLET_KINDS.DEFI, source: 'TronScan' },
 ];
 
-// ---------- Mock Wallets ----------
+// ---------- Mock Wallets (SEM valores) ----------
 function generateMockWallets() {
     const wallets = [];
     const brazilianExchanges = ['Mercado Bitcoin', 'BitPreço', 'NoahX', 'Bitcoin Trade', 'Foxbit', 'Binance Brasil', 'Ripio', 'Lemon Cash', 'Coinext', 'NovaDAX'];
@@ -131,7 +123,6 @@ function generateMockWallets() {
     const services = ['Uniswap V3 Router', 'Uniswap V2 Router', 'Tornado Cash Router', '1inch Aggregator', 'Curve.fi', 'Aave V3', 'Compound V3', 'OpenSea', 'Lido', 'MakerDAO'];
     const suspiciousPatterns = ['Mixer', 'High Risk', 'Sanctioned', 'Ransomware Receivers', 'Dark Market'];
 
-    // 250 wallets: 30% exchanges, 15% serviços conhecidos, 50% pessoais, 5% suspeito
     for (let i = 0; i < MOCK_CONFIG.NUM_MOCK_WALLETS; i++) {
         const r = rng();
         let chain, address, kind, label;
@@ -178,12 +169,6 @@ function generateMockWallets() {
                     : kind === WALLET_KINDS.UNKNOWN ? randInt(50, 80)
                         : randInt(20, 60);
 
-        const balance = rng() < 0.3
-            ? rng() * 10000
-            : rng() < 0.7
-                ? rng() * 100
-                : rng() * 5;
-
         wallets.push({
             id: `wallet_${i}`,
             address,
@@ -191,12 +176,10 @@ function generateMockWallets() {
             label,
             kind,
             risk_score: riskScore,
-            balance,
-            balance_usd: balance * (chain.includes('USDT') || chain.includes('USDC') ? 1 : 65000),
+            tx_count_total: randInt(0, 5000),
+            tx_count_30d: randInt(0, 200),
             first_seen: generateTimestamp(randInt(30, 1095)),
             last_activity: generateTimestamp(randInt(0, 30)),
-            tx_count_30d: randInt(0, 200),
-            tx_volume_30d_usd: rng() * 1000000,
             monitored: rng() < 0.35,
             sanctioned: kind === WALLET_KINDS.MIXER && rng() < 0.5,
             tags: kind === WALLET_KINDS.MIXER ? ['mixer', 'high-risk'] : [],
@@ -208,7 +191,6 @@ function generateMockWallets() {
         });
     }
 
-    // Adiciona os labels conhecidos
     KNOWN_LABELS.forEach((kl, idx) => {
         if (idx < wallets.length) {
             wallets[idx].address = kl.address;
@@ -221,7 +203,7 @@ function generateMockWallets() {
     return wallets;
 }
 
-// ---------- Mock Transactions ----------
+// ---------- Mock Transactions (SEM valores) ----------
 function generateMockTransactions(wallets) {
     const transactions = [];
     const chains = ['BTC', 'ETH', 'USDT_ETH', 'USDC_ETH', 'TRX', 'USDT_TRC20', 'BNB'];
@@ -235,9 +217,6 @@ function generateMockTransactions(wallets) {
         const from = wallets[fromIdx];
         const to = wallets[toIdx];
 
-        const baseValue = rng() < 0.6 ? rng() * 5 : rng() * 500;
-        const fee = chain === 'BTC' ? rng() * 0.0005 : rng() * 0.005;
-
         transactions.push({
             id: `tx_${i}`,
             hash: generateTxHash(chain),
@@ -248,9 +227,6 @@ function generateMockTransactions(wallets) {
             from_wallet_id: from.id,
             to_address: to.address,
             to_wallet_id: to.id,
-            value: baseValue,
-            value_usd: baseValue * (chain.includes('USDT') || chain.includes('USDC') ? 1 : 65000),
-            fee,
             status: rng() < 0.95 ? 'confirmed' : 'pending',
             confirmations: rng() < 0.95 ? randInt(1, 100000) : randInt(0, 5),
             risk_score: Math.max(from.risk_score, to.risk_score) + randInt(-10, 10),
@@ -264,7 +240,7 @@ function generateMockTransactions(wallets) {
     return transactions.sort((a, b) => b.timestamp - a.timestamp);
 }
 
-// ---------- Mock Cases ----------
+// ---------- Mock Cases (SEM valores) ----------
 function generateMockCases() {
     const cases = [];
     const subjects = [
@@ -273,12 +249,12 @@ function generateMockCases() {
         'Esquema de pirâmide TokenBR',
         'Fraude em exchange nacional',
         'Operação DarkChain - PCC',
-        'Hack wallet pessoal R$2M',
+        'Hack wallet pessoal',
         'Fintech clandestina',
         'Esquema NFT scam',
         'Lavagem via mixer Tornado',
         'Evasion de divisas via P2P',
-        'Captura de_BITCOIN_BRASIL suspeito',
+        'Captura de suspeito suspeito',
         'Crypto-grooming menor',
     ];
     const locations = ['São Paulo/SP', 'Rio de Janeiro/RJ', 'Belo Horizonte/MG', 'Porto Alegre/RS', 'Curitiba/PR', 'Brasília/DF', 'Salvador/BA', 'Fortaleza/CE', 'Manaus/AM', 'Recife/PE'];
@@ -316,7 +292,7 @@ function generateMockCases() {
     return cases;
 }
 
-// ---------- Mock Alerts ----------
+// ---------- Mock Alerts (SEM valores) ----------
 function generateMockAlerts(cases, transactions) {
     const alerts = [];
 
@@ -341,9 +317,7 @@ function generateMockAlerts(cases, transactions) {
             status: triggered ? (rng() < 0.5 ? 'acknowledged' : 'resolved') : 'open',
             false_positive: triggered && rng() < 0.2,
             metadata: {
-                rule_value: rule === ALERT_RULE_TYPES.VALUE_THRESHOLD ? randInt(10000, 100000) : null,
                 chain: tx.chain,
-                value_usd: tx.value_usd,
             },
             created_at: new Date(),
         });
@@ -397,7 +371,6 @@ function ensureData() {
     if (!_cases) _cases = generateMockCases();
     if (!_alerts) _alerts = generateMockAlerts(_cases, _transactions);
 
-    // Vincular transações a casos (para simular investigações reais)
     _transactions.forEach((tx) => {
         if (rng() < 0.15 && _cases.length > 0) {
             const c = pick(_cases);
@@ -408,7 +381,6 @@ function ensureData() {
         }
     });
 
-    // Vincular wallets a casos
     _wallets.forEach((w) => {
         if (rng() < 0.1 && _cases.length > 0) {
             const c = pick(_cases);
@@ -460,12 +432,10 @@ export const miraService = {
             label: data.label || 'Nova wallet',
             kind: data.kind || WALLET_KINDS.UNKNOWN,
             risk_score: data.risk_score || 0,
-            balance: 0,
-            balance_usd: 0,
+            tx_count_total: 0,
+            tx_count_30d: 0,
             first_seen: new Date(),
             last_activity: null,
-            tx_count_30d: 0,
-            tx_volume_30d_usd: 0,
             monitored: true,
             sanctioned: false,
             tags: data.tags || [],
@@ -502,7 +472,6 @@ export const miraService = {
 
         if (filters.chain) filtered = filtered.filter((t) => t.chain === filters.chain);
         if (filters.flagged !== undefined) filtered = filtered.filter((t) => t.flagged === filters.flagged);
-        if (filters.minValue !== undefined) filtered = filtered.filter((t) => t.value_usd >= filters.minValue);
         if (filters.address) {
             const a = filters.address.toLowerCase();
             filtered = filtered.filter((t) =>
@@ -644,7 +613,6 @@ export const miraService = {
                 t.to_address.toLowerCase() === address.toLowerCase()
         );
 
-        // Seed: target address
         nodes.set(address, {
             id: address,
             label: address.slice(0, 8) + '...' + address.slice(-6),
@@ -690,8 +658,6 @@ export const miraService = {
                         id: tx.id,
                         source: fromKey,
                         target: toKey,
-                        value: tx.value,
-                        value_usd: tx.value_usd,
                         chain: tx.chain,
                         timestamp: tx.timestamp,
                         hash: tx.hash,
@@ -722,9 +688,9 @@ export const miraService = {
         const clusters = new Map();
         wallets.forEach((w) => {
             if (w.cluster_id) {
-                if (!clusters.has(w.cluster_id)) clusters.set(w.cluster_id, { id: w.cluster_id, wallets: [], total_balance_usd: 0 });
+                if (!clusters.has(w.cluster_id)) clusters.set(w.cluster_id, { id: w.cluster_id, wallets: [], size: 0 });
                 clusters.get(w.cluster_id).wallets.push(w.id);
-                clusters.get(w.cluster_id).total_balance_usd += w.balance_usd;
+                clusters.get(w.cluster_id).size = clusters.get(w.cluster_id).wallets.length;
             }
         });
         return Array.from(clusters.values()).slice(0, 50);
@@ -735,7 +701,7 @@ export const miraService = {
         return labels;
     },
 
-    // ---------- Dashboard KPIs ----------
+    // ---------- Dashboard KPIs (apenas contagens, sem valores) ----------
     async getDashboardMetrics() {
         const { wallets, transactions, cases, alerts } = ensureData();
         const openAlerts = alerts.filter((a) => a.status === 'open').length;
@@ -743,14 +709,12 @@ export const miraService = {
         const monitoredWallets = wallets.filter((w) => w.monitored).length;
         const now = Date.now();
         const last24h = transactions.filter((t) => now - t.timestamp.getTime() < 86400000).length;
-        const totalUsd = wallets.reduce((sum, w) => sum + (w.monitored ? w.balance_usd : 0), 0);
 
         return {
             active_cases: activeCases,
             monitored_wallets: monitoredWallets,
             transactions_24h: last24h,
             alerts_open: openAlerts,
-            total_tracked_usd: totalUsd,
             chains_covered: CHAIN_LIST.length,
             risk_score_avg: Math.round(wallets.reduce((s, w) => s + w.risk_score, 0) / wallets.length),
             alerts_by_severity: {
@@ -770,14 +734,10 @@ export const miraService = {
                 chain: c.code,
                 name: c.name,
                 tx_count: transactions.filter((t) => t.chain === c.code).length,
-                volume_usd: transactions
-                    .filter((t) => t.chain === c.code)
-                    .reduce((s, t) => s + t.value_usd, 0),
-            })).sort((a, b) => b.volume_usd - a.volume_usd),
+            })).sort((a, b) => b.tx_count - a.tx_count),
         };
     },
 
-    // ---------- Reset ----------
     _reset() {
         _wallets = null;
         _transactions = null;

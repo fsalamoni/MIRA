@@ -56,7 +56,6 @@ export default function ChainAnalytics() {
                 <p className="text-[#6B6B66] mt-1">Clusterização heurística, labels e risk scoring.</p>
             </div>
 
-            {/* Heurísticas cards */}
             <Card className="border-[#E7E5E2] bg-white">
                 <CardHeader>
                     <CardTitle className="text-[#0B1F3A] flex items-center gap-2">
@@ -76,7 +75,7 @@ export default function ChainAnalytics() {
                                     {k === 'peel_chain' && 'Padrão "1 entrada grande → várias pequenas + change" típico de movimentações.'}
                                     {k === 'co_spending' && 'Endereços que assinam outputs na mesma transação são correlacionados.'}
                                     {k === 'temporal' && 'Transações com timestamps próximos em chains diferentes podem ser correlatas.'}
-                                    {k === 'amount' && 'Valores únicos transferidos 1:1 entre chains podem indicar mesma operação.'}
+                                    {k === 'amount' && 'Quantidades idênticas transferidas 1:1 entre chains podem indicar mesma operação.'}
                                     {k === 'bridge' && 'Lock + mint em bridge é ponto de correlação cross-chain confiável.'}
                                 </div>
                             </div>
@@ -85,7 +84,6 @@ export default function ChainAnalytics() {
                 </CardContent>
             </Card>
 
-            {/* Clusters */}
             <Card className="border-[#E7E5E2] bg-white">
                 <CardHeader>
                     <CardTitle className="text-[#0B1F3A] flex items-center justify-between">
@@ -105,13 +103,10 @@ export default function ChainAnalytics() {
                             <div key={c.id} className="border border-[#E7E5E2] rounded-lg p-3 hover:border-[#0B1F3A] transition">
                                 <div className="flex items-center justify-between mb-2">
                                     <span className="font-mono text-xs text-[#6B6B66]">{c.id}</span>
-                                    <Badge className="bg-blue-100 text-blue-700 text-[10px]">{c.wallets.length} wallets</Badge>
+                                    <Badge className="bg-blue-100 text-blue-700 text-[10px]">{c.size} wallets</Badge>
                                 </div>
-                                <div className="text-sm font-semibold text-[#0B1F3A] mb-1">
-                                    ${c.total_balance_usd.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}
-                                </div>
-                                <div className="text-xs text-[#6B6B66]">
-                                    Saldo agregado combinado
+                                <div className="text-sm text-[#6B6B66]">
+                                    Conjunto de endereços provavelmente sob controle comum.
                                 </div>
                             </div>
                         ))}
@@ -119,7 +114,6 @@ export default function ChainAnalytics() {
                 </CardContent>
             </Card>
 
-            {/* Labels */}
             <Card className="border-[#E7E5E2] bg-white">
                 <CardHeader>
                     <CardTitle className="text-[#0B1F3A] flex items-center justify-between">

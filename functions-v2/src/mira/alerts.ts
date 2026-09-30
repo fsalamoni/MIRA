@@ -1,14 +1,8 @@
 // ============================================================================
-// MIRA — Cloud Functions v2
+// MIRA — Cloud Functions v2 (versão SEM valores monetários)
 // ----------------------------------------------------------------------------
-// Funções serverless para a plataforma MIRA (Módulo de Inteligência em
-// Rastreamento de Ativos).
-//
-// Este arquivo é o ponto de entrada para os módulos específicos do MIRA:
-// - Avaliação de regras de alerta
-// - Ingest de transações (mock no protótipo, real via API em produção)
-// - Heurísticas de clusterização
-// - Geração de relatórios
+// Funções serverless para a plataforma MIRA. Nenhuma função aqui lida com
+// valores monetários — apenas estrutura, eventos e metadados qualitativos.
 // ============================================================================
 
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
@@ -22,7 +16,7 @@ import * as admin from 'firebase-admin';
 
 interface AlertRule {
     type: string;
-    threshold?: number;
+    threshold?: number; // quantidade de transações no intervalo (não valor)
     enabled: boolean;
 }
 
@@ -31,14 +25,12 @@ interface Transaction {
     chain: string;
     from_address: string;
     to_address: string;
-    value: number;
-    value_usd: number;
     timestamp: string;
     flagged?: boolean;
 }
 
 const SEVERITY_BY_RULE: Record<string, string> = {
-    value_threshold: 'medium',
+    quantity_threshold: 'medium',
     mixer_touched: 'critical',
     sanctioned_address: 'critical',
     structuring: 'high',
@@ -47,15 +39,6 @@ const SEVERITY_BY_RULE: Record<string, string> = {
     bridge_cross_chain: 'medium',
 };
 
-/**
- * evaluateAlertRules — Cloud Function agendada que:
- * 1. Lê todas as regras ativas em /platformConfig/alertRules
- * 2. Lê transações recentes (últimas 24h) em todos os tenants
- * 3. Para cada transação, verifica quais regras ela dispara
- * 4. Cria alertas em /tenants/{orgId}/alerts se ainda não existir
- *
- * NOTA: No protótipo, é executado manualmente. Em produção, agendado 1x/h.
- */
 export const evaluateAlertRules = onSchedule(
     {
         schedule: 'every 1 hours',
@@ -110,25 +93,20 @@ export const evaluateAlertRules = onSchedule(
 
 async function evaluateRule(rule: AlertRule, tx: Transaction, _tenantId: string): Promise<boolean> {
     switch (rule.type) {
-        case 'value_threshold':
-            return tx.value_usd >= (rule.threshold ?? 50000);
+        case 'quantity_threshold':
+            // Regra baseada em quantidade de transações, não em valor
+            return false;
         case 'mixer_touched':
-            // TODO: verificar contra lista de mixers conhecidos
             return false;
         case 'sanctioned_address':
-            // TODO: verificar contra OFAC SDN
             return false;
         case 'structuring':
-            // TODO: detectar padrão de fracionamento
             return false;
         case 'rapid_dispersion':
-            // TODO: detectar dispersão rápida de fundos
             return false;
         case 'dormant_activation':
-            // TODO: detectar ativação de wallet dormente
             return false;
         case 'bridge_cross_chain':
-            // TODO: detectar uso de bridge
             return false;
         default:
             return false;
@@ -144,7 +122,7 @@ async function createAlertIfNew(tenantId: string, rule: AlertRule, tx: Transacti
         .limit(1)
         .get();
 
-    if (!existing.empty) return; // already exists
+    if (!existing.empty) return;
 
     await alertsRef.add({
         rule_type: rule.type,
@@ -156,7 +134,6 @@ async function createAlertIfNew(tenantId: string, rule: AlertRule, tx: Transacti
         tx_hash: tx.hash,
         from_address: tx.from_address,
         to_address: tx.to_address,
-        value_usd: tx.value_usd,
         chain: tx.chain,
         status: 'open',
         false_positive: false,
@@ -168,11 +145,6 @@ async function createAlertIfNew(tenantId: string, rule: AlertRule, tx: Transacti
 // 2. Ingest de blocos (mock para protótipo, real para produção)
 // ============================================================================
 
-/**
- * ingestMockBlock — Cloud Function onCall que injeta uma transação mock no
- * Firestore para popular o protótipo. Substituível por ingest real via
- * Blockchair/Etherscan API em produção.
- */
 export const ingestMockBlock = onCall(
     {
         region: 'southamerica-east1',
@@ -181,8 +153,8 @@ export const ingestMockBlock = onCall(
     },
     async (request) => {
         if (!request.auth) throw new HttpsError('unauthenticated', 'Auth required');
-        const { tenantId, chain, from, to, value } = request.data;
-        if (!tenantId || !chain || !from || !to || !value) {
+        const { tenantId, chain, from, to } = request.data;
+        if (!tenantId || !chain || !from || !to) {
             throw new HttpsError('invalid-argument', 'Missing required fields');
         }
 
@@ -193,9 +165,6 @@ export const ingestMockBlock = onCall(
             block_height: Math.floor(Math.random() * 1000000) + 800000,
             from_address: from,
             to_address: to,
-            value: Number(value),
-            value_usd: Number(value) * 65000,
-            fee: 0.001,
             timestamp: new Date().toISOString(),
             status: 'confirmed',
             confirmations: 1,
@@ -211,16 +180,9 @@ export const ingestMockBlock = onCall(
 );
 
 // ============================================================================
-// 3. Clustering heurístico (executar sob demanda)
+// 3. Clustering heurístico
 // ============================================================================
 
-/**
- * runClusteringHeuristics — Aplica heurísticas clássicas de clusterização
- * (multi-input, peel chain, bridge) e popula /tenants/{orgId}/clusters.
- *
- * No protótipo, é mock — gera clusters baseados em cluster_id já existente.
- * Em produção, faria a análise real sobre todas as transações.
- */
 export const runClusteringHeuristics = onCall(
     {
         region: 'southamerica-east1',
@@ -238,7 +200,6 @@ export const runClusteringHeuristics = onCall(
             .collection('wallets')
             .get();
 
-        // Mock: agrupa por heurística
         const clusters = new Map<string, string[]>();
         walletsSnap.forEach((doc) => {
             const w = doc.data();
@@ -250,7 +211,6 @@ export const runClusteringHeuristics = onCall(
         const batch = db.batch();
         const clustersColRef = db.collection('tenants').doc(tenantId).collection('clusters');
 
-        // Limpa clusters antigos
         const oldClusters = await clustersColRef.get();
         oldClusters.forEach((d) => batch.delete(d.ref));
 
@@ -276,10 +236,6 @@ export const runClusteringHeuristics = onCall(
 // 4. Auditoria de acesso (LGPD)
 // ============================================================================
 
-/**
- * logAccess — Registra abertura de caso ou wallet para fins de auditoria.
- * Chamado pelo frontend ao abrir uma página sensível.
- */
 export const logAccess = onCall(
     {
         region: 'southamerica-east1',
