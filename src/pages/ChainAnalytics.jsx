@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
     Network,
     Tag,
@@ -13,6 +14,7 @@ import { miraService } from '@/services/miraService';
 import { CLUSTERING_HEURISTIC_LABELS, WALLET_KIND_LABELS, OSINT_SOURCE_LABELS } from '@/constants/mira';
 
 export default function ChainAnalytics() {
+    const navigate = useNavigate();
     const [clusters, setClusters] = useState([]);
     const [labels, setLabels] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -100,13 +102,25 @@ export default function ChainAnalytics() {
                 <CardContent>
                     <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
                         {clusters.slice(0, 12).map((c) => (
-                            <div key={c.id} className="border border-[#E7E5E2] rounded-lg p-3 hover:border-[#0B1F3A] transition">
+                            <div
+                                key={c.id}
+                                className="border border-[#E7E5E2] rounded-lg p-3 hover:border-[#0B1F3A] transition cursor-pointer"
+                                onClick={() => navigate(`/ClusterDetalhe/${c.id}`)}
+                            >
                                 <div className="flex items-center justify-between mb-2">
-                                    <span className="font-mono text-xs text-[#6B6B66]">{c.id}</span>
+                                    <span className="font-semibold text-sm text-[#0B1F3A]">{c.name}</span>
+                                    {c.real_cluster ? (
+                                        <Badge className="bg-emerald-100 text-emerald-700 text-[10px]">Real</Badge>
+                                    ) : (
+                                        <Badge variant="outline" className="text-[10px]">Sintético</Badge>
+                                    )}
+                                </div>
+                                <div className="flex items-center justify-between text-xs">
+                                    <span className="font-mono text-[#6B6B66]">{c.id}</span>
                                     <Badge className="bg-blue-100 text-blue-700 text-[10px]">{c.size} wallets</Badge>
                                 </div>
-                                <div className="text-sm text-[#6B6B66]">
-                                    Conjunto de endereços provavelmente sob controle comum.
+                                <div className="text-xs text-[#6B6B66] mt-2">
+                                    {c.description?.slice(0, 80)}…
                                 </div>
                             </div>
                         ))}

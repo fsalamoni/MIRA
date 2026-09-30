@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
     Search,
     Coins,
@@ -26,6 +27,7 @@ function getExplorerUrl(chain, hash) {
 }
 
 export default function Transacoes() {
+    const navigate = useNavigate();
     const [transactions, setTransactions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
@@ -171,7 +173,7 @@ export default function Transacoes() {
                                 <tr
                                     key={tx.id}
                                     className={`border-b border-[#E7E5E2] hover:bg-[#FAFAF9] cursor-pointer ${tx.flagged ? 'bg-red-50/30' : ''}`}
-                                    onClick={() => setSelectedTx(tx)}
+                                    onClick={() => navigate(`/TransacaoDetalhe/${tx.id}`)}
                                 >
                                     <td className="p-3">
                                         <div className="flex items-center gap-2">

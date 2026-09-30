@@ -52,7 +52,7 @@ const SECONDARY_ITEMS = [
 
 const ADMIN_ITEM = { name: 'Admin', icon: ShieldCheck, path: '/Admin' };
 
-const DETAIL_ROUTES = ['/InvestigacaoDetalhe', '/WalletDetalhe'];
+const DETAIL_ROUTES = ['/InvestigacaoDetalhe', '/WalletDetalhe', '/TransacaoDetalhe', '/AlertaDetalhe', '/ClusterDetalhe', '/EnderecoDetalhe'];
 
 export default function Layout({ children, currentPageName }) {
     const { user, signOut, isAuthenticated, isLoadingAuth } = useAuth();

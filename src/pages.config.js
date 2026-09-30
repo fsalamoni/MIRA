@@ -25,6 +25,10 @@ import Relatorios from './pages/Relatorios';
 import Expedientes from './pages/Expedientes';
 import Parcerias from './pages/Parcerias';
 import Documentacao from './pages/Documentacao';
+import TransacaoDetalhe from './pages/TransacaoDetalhe';
+import AlertaDetalhe from './pages/AlertaDetalhe';
+import ClusterDetalhe from './pages/ClusterDetalhe';
+import EnderecoDetalhe from './pages/EnderecoDetalhe';
 import __Layout from './Layout.jsx';
 
 
@@ -43,9 +47,13 @@ export const PAGES = {
     "Wallets": Wallets,
     "WalletDetalhe": WalletDetalhe,
     "Transacoes": Transacoes,
+    "TransacaoDetalhe": TransacaoDetalhe,
     "Alertas": Alertas,
+    "AlertaDetalhe": AlertaDetalhe,
     "Rastreamento": Rastreamento,
     "ChainAnalytics": ChainAnalytics,
+    "ClusterDetalhe": ClusterDetalhe,
+    "EnderecoDetalhe": EnderecoDetalhe,
     "OSINT": OSINT,
     "Relatorios": Relatorios,
     "Expedientes": Expedientes,

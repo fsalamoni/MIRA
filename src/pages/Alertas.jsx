@@ -1,9 +1,11 @@
 import React, { useEffect, useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
     Bell,
     Search,
     Clock,
     CheckCircle2,
+    Eye,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -19,6 +21,7 @@ function getSevConfig(sev) {
 }
 
 export default function Alertas() {
+    const navigate = useNavigate();
     const [alerts, setAlerts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
@@ -199,6 +202,10 @@ export default function Alertas() {
                                     </div>
                                     {a.status === 'open' && (
                                         <div className="flex flex-col gap-2">
+                                            <Button size="sm" variant="outline" onClick={() => navigate(`/AlertaDetalhe/${a.id}`)}>
+                                                <Eye className="h-3 w-3 mr-1" />
+                                                Detalhes
+                                            </Button>
                                             <Button size="sm" variant="outline" onClick={() => handleAck(a.id)}>
                                                 Reconhecer
                                             </Button>
@@ -206,6 +213,12 @@ export default function Alertas() {
                                                 Resolver
                                             </Button>
                                         </div>
+                                    )}
+                                    {a.status !== 'open' && (
+                                        <Button size="sm" variant="outline" onClick={() => navigate(`/AlertaDetalhe/${a.id}`)}>
+                                            <Eye className="h-3 w-3 mr-1" />
+                                            Detalhes
+                                        </Button>
                                     )}
                                     {a.status === 'acknowledged' && (
                                         <Button size="sm" onClick={() => handleResolve(a.id)} className="bg-emerald-600 hover:bg-emerald-700">

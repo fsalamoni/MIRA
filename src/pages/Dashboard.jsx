@@ -257,6 +257,71 @@ export default function Dashboard() {
                     </CardContent>
                 </Card>
             </div>
+
+            {/* Inteligência de Fontes Públicas */}
+            {metrics.real_world_stats && (
+                <Card className="border-[#E7E5E2] bg-gradient-to-br from-blue-50 to-white">
+                    <CardHeader>
+                        <CardTitle className="text-[#0B1F3A] flex items-center gap-2">
+                            <Shield className="w-5 h-5 text-blue-600" />
+                            Inteligência de Fontes Públicas
+                        </CardTitle>
+                        <CardDescription>
+                            Dados agregados das bases públicas indexadas pela plataforma
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div className="text-center p-3 border rounded-lg bg-white">
+                                <div className="text-2xl font-bold text-[#0B1F3A]">
+                                    {metrics.real_world_stats.known_wallets.total}
+                                </div>
+                                <p className="text-xs text-[#6B6B66] mt-1">Endereços catalogados</p>
+                                <p className="text-xs text-red-600 mt-0.5">
+                                    {metrics.real_world_stats.known_wallets.sanctioned} sancionados
+                                </p>
+                            </div>
+                            <div className="text-center p-3 border rounded-lg bg-white">
+                                <div className="text-2xl font-bold text-[#0B1F3A]">
+                                    {metrics.real_world_stats.public_cases.total}
+                                </div>
+                                <p className="text-xs text-[#6B6B66] mt-1">Casos públicos</p>
+                                <p className="text-xs text-blue-600 mt-0.5">
+                                    documentados com fontes
+                                </p>
+                            </div>
+                            <div className="text-center p-3 border rounded-lg bg-white">
+                                <div className="text-2xl font-bold text-[#0B1F3A]">
+                                    {metrics.real_wallets.toLocaleString('pt-BR')}
+                                </div>
+                                <p className="text-xs text-[#6B6B66] mt-1">Wallets de fontes públicas</p>
+                                <p className="text-xs text-emerald-600 mt-0.5">
+                                    linked a casos reais
+                                </p>
+                            </div>
+                            <div className="text-center p-3 border rounded-lg bg-white">
+                                <div className="text-2xl font-bold text-[#0B1F3A]">
+                                    {metrics.real_cases}
+                                </div>
+                                <p className="text-xs text-[#6B6B66] mt-1">Casos reais importados</p>
+                                <p className="text-xs text-amber-600 mt-0.5">
+                                    DOJ + FBI + OFAC
+                                </p>
+                            </div>
+                        </div>
+                        <div className="mt-4 flex flex-wrap gap-2 text-xs text-[#6B6B66]">
+                            <span className="font-mono px-2 py-1 bg-white border rounded">OFAC SDN</span>
+                            <span className="font-mono px-2 py-1 bg-white border rounded">Etherscan</span>
+                            <span className="font-mono px-2 py-1 bg-white border rounded">WalletExplorer</span>
+                            <span className="font-mono px-2 py-1 bg-white border rounded">Chainabuse</span>
+                            <span className="font-mono px-2 py-1 bg-white border rounded">EU Council</span>
+                            <span className="font-mono px-2 py-1 bg-white border rounded">UN Security</span>
+                            <span className="font-mono px-2 py-1 bg-white border rounded">FBI Press</span>
+                            <span className="font-mono px-2 py-1 bg-white border rounded">DOJ Court Records</span>
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
         </div>
     );
 }
