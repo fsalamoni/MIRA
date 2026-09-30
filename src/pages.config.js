@@ -22,6 +22,7 @@ import Rastreamento from './pages/Rastreamento';
 import ChainAnalytics from './pages/ChainAnalytics';
 import OSINT from './pages/OSINT';
 import Relatorios from './pages/Relatorios';
+import RelatorioDetalhe from './pages/RelatorioDetalhe';
 import Expedientes from './pages/Expedientes';
 import Parcerias from './pages/Parcerias';
 import Documentacao from './pages/Documentacao';
@@ -29,6 +30,10 @@ import TransacaoDetalhe from './pages/TransacaoDetalhe';
 import AlertaDetalhe from './pages/AlertaDetalhe';
 import ClusterDetalhe from './pages/ClusterDetalhe';
 import EnderecoDetalhe from './pages/EnderecoDetalhe';
+import OSINTDetalhe from './pages/OSINTDetalhe';
+import ComparadorClusters from './pages/ComparadorClusters';
+import BuscaAvancada from './pages/BuscaAvancada';
+import NetworkMap from './pages/NetworkMap';
 import __Layout from './Layout.jsx';
 
 
@@ -53,9 +58,14 @@ export const PAGES = {
     "Rastreamento": Rastreamento,
     "ChainAnalytics": ChainAnalytics,
     "ClusterDetalhe": ClusterDetalhe,
+    "ComparadorClusters": ComparadorClusters,
+    "NetworkMap": NetworkMap,
     "EnderecoDetalhe": EnderecoDetalhe,
+    "BuscaAvancada": BuscaAvancada,
     "OSINT": OSINT,
+    "OSINTDetalhe": OSINTDetalhe,
     "Relatorios": Relatorios,
+    "RelatorioDetalhe": RelatorioDetalhe,
     "Expedientes": Expedientes,
     "Parcerias": Parcerias,
     "Documentacao": Documentacao,

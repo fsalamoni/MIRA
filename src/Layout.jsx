@@ -24,6 +24,8 @@ import {
     ChevronLeft,
     ChevronRight,
     BookOpen,
+    GitCompare,
+    Filter,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -37,8 +39,11 @@ const NAV_ITEMS = [
     { name: 'Alertas', icon: Bell, path: '/Alertas', category: 'fiscalizacao' },
     { name: 'Rastreamento', icon: GitBranch, path: '/Rastreamento', category: 'fiscalizacao' },
     { name: 'Chain Analytics', icon: Network, path: '/ChainAnalytics', category: 'fiscalizacao' },
+    { name: 'Network Map', icon: Network, path: '/NetworkMap', category: 'fiscalizacao' },
     { name: 'OSINT', icon: ScanSearch, path: '/OSINT', category: 'fiscalizacao' },
     { name: 'Relatórios', icon: Shield, path: '/Relatorios', category: 'fiscalizacao' },
+    { name: 'Busca Avançada', icon: Filter, path: '/BuscaAvancada', category: 'fiscalizacao' },
+    { name: 'Comparador', icon: GitCompare, path: '/ComparadorClusters', category: 'fiscalizacao' },
     { name: 'Expedientes', icon: FileText, path: '/Expedientes', category: 'operacional' },
     { name: 'Parcerias', icon: Handshake, path: '/Parcerias', category: 'operacional' },
     { name: 'Documentação', icon: BookOpen, path: '/Documentacao', category: 'operacional' },
@@ -52,7 +57,7 @@ const SECONDARY_ITEMS = [
 
 const ADMIN_ITEM = { name: 'Admin', icon: ShieldCheck, path: '/Admin' };
 
-const DETAIL_ROUTES = ['/InvestigacaoDetalhe', '/WalletDetalhe', '/TransacaoDetalhe', '/AlertaDetalhe', '/ClusterDetalhe', '/EnderecoDetalhe'];
+const DETAIL_ROUTES = ['/InvestigacaoDetalhe', '/WalletDetalhe', '/TransacaoDetalhe', '/AlertaDetalhe', '/ClusterDetalhe', '/EnderecoDetalhe', '/OSINTDetalhe', '/RelatorioDetalhe'];
 
 export default function Layout({ children, currentPageName }) {
     const { user, signOut, isAuthenticated, isLoadingAuth } = useAuth();

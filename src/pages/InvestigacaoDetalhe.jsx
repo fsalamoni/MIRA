@@ -17,6 +17,7 @@ import {
     Shield,
     Download,
     Edit,
+    CheckCircle2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -48,6 +49,7 @@ export default function InvestigacaoDetalhe() {
     const [editing, setEditing] = useState(false);
     const [evidenceOpen, setEvidenceOpen] = useState(false);
     const [linkOpen, setLinkOpen] = useState(null); // 'wallet' | 'tx' | 'alert'
+    const [evidence, setEvidence] = useState([]);
 
     const [form, setForm] = useState({});
     const [evidenceForm, setEvidenceForm] = useState({
@@ -128,8 +130,19 @@ export default function InvestigacaoDetalhe() {
             toast.error('Descrição é obrigatória');
             return;
         }
-        // Para o protótipo, apenas simulamos
-        toast.success('Evidência adicionada à cadeia de custódia (simulado)');
+        // Para o protótipo, geramos hash fake + adicionamos ao state
+        const fakeHash = Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+        const newEvidence = {
+            id: `evd-${Date.now()}`,
+            kind: evidenceForm.kind,
+            description: evidenceForm.description,
+            reference: evidenceForm.reference,
+            hash: fakeHash,
+            collected_at: new Date(),
+            collected_by: 'analyst_demo@mira.platform',
+        };
+        setEvidence((prev) => [...prev, newEvidence]);
+        toast.success('Evidência adicionada à cadeia de custódia');
         setEvidenceOpen(false);
         setEvidenceForm({ kind: EVIDENCE_KINDS.TRANSACTION, description: '', reference: '' });
     };
@@ -319,6 +332,7 @@ export default function InvestigacaoDetalhe() {
                     <TabsTrigger value="alerts"><Bell className="w-4 h-4 mr-2" />Alertas ({alerts.length})</TabsTrigger>
                     <TabsTrigger value="tracking"><Network className="w-4 h-4 mr-2" />Rastreamento</TabsTrigger>
                     <TabsTrigger value="timeline"><Activity className="w-4 h-4 mr-2" />Timeline</TabsTrigger>
+                    <TabsTrigger value="custody"><Shield className="w-4 h-4 mr-2" />Cadeia de Custódia ({evidence.length})</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="wallets" className="space-y-3">
@@ -477,6 +491,86 @@ export default function InvestigacaoDetalhe() {
                             </div>
                         </CardContent>
                     </Card>
+                </TabsContent>
+
+                <TabsContent value="custody" className="space-y-3">
+                    <div className="flex justify-between items-center">
+                        <h3 className="text-sm font-bold text-[#0B1F3A]">Cadeia de custódia</h3>
+                        <Button size="sm" onClick={() => setEvidenceOpen(true)} className="bg-[#0B1F3A] hover:bg-[#1F2E39]">
+                            <Plus className="w-3 h-3 mr-1" /> Adicionar evidência
+                        </Button>
+                    </div>
+
+                    {evidence.length === 0 ? (
+                        <Card className="border-[#E7E5E2] bg-white">
+                            <CardContent className="p-8 text-center text-sm text-[#6B6B66]">
+                                Nenhuma evidência catalogada. Adicione evidências com hash de integridade
+                                para construir a cadeia de custódia do caso.
+                            </CardContent>
+                        </Card>
+                    ) : (
+                        <Card className="border-[#E7E5E2] bg-white">
+                            <CardContent className="p-6">
+                                <div className="relative">
+                                    {/* Vertical line */}
+                                    <div className="absolute left-4 top-0 bottom-0 w-px bg-slate-200"></div>
+
+                                    <div className="space-y-6">
+                                        {evidence.map((ev, i) => {
+                                            const kindMeta = EVIDENCE_KIND_LABELS[ev.kind] || ev.kind;
+                                            return (
+                                                <div key={ev.id || i} className="relative pl-12">
+                                                    {/* Dot */}
+                                                    <div className="absolute left-0 top-1 w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center ring-4 ring-white">
+                                                        <Shield className="w-4 h-4 text-white" />
+                                                    </div>
+
+                                                    <div className="border rounded-lg p-4 bg-slate-50">
+                                                        <div className="flex items-start justify-between gap-3 mb-2">
+                                                            <div>
+                                                                <Badge variant="outline" className="text-xs mb-2">{kindMeta}</Badge>
+                                                                <div className="font-semibold text-sm text-[#0B1F3A]">{ev.description}</div>
+                                                            </div>
+                                                            <div className="text-right">
+                                                                <div className="text-xs text-[#6B6B66]">
+                                                                    {ev.collected_at && new Date(ev.collected_at).toLocaleString('pt-BR')}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        {ev.reference && (
+                                                            <div className="mt-2">
+                                                                <div className="text-xs text-[#6B6B66] uppercase">Referência</div>
+                                                                <div className="font-mono text-xs break-all">{ev.reference}</div>
+                                                            </div>
+                                                        )}
+
+                                                        <div className="mt-3 pt-3 border-t grid grid-cols-1 md:grid-cols-2 gap-2">
+                                                            <div>
+                                                                <div className="text-xs text-[#6B6B66] uppercase">Coletor</div>
+                                                                <div className="text-xs font-medium">{ev.collected_by || 'Sistema'}</div>
+                                                            </div>
+                                                            <div>
+                                                                <div className="text-xs text-[#6B6B66] uppercase">Hash SHA-256</div>
+                                                                <div className="font-mono text-xs break-all text-emerald-700">
+                                                                    {ev.hash || `sha256:${Math.random().toString(36).slice(2, 18)}…`}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="mt-2 flex items-center gap-1 text-xs text-emerald-700">
+                                                            <CheckCircle2 className="w-3 h-3" />
+                                                            Integridade verificada
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
                 </TabsContent>
             </Tabs>
 
