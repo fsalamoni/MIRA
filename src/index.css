@@ -120,3 +120,109 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* ========== DARK MODE MIRA ========== */
+html.dark {
+  color-scheme: dark;
+}
+
+html.dark body {
+  background-color: #0f172a;
+  color: #f1f5f9;
+}
+
+html.dark .bg-\[\#FAFAF9\] {
+  background-color: #0f172a !important;
+}
+
+html.dark .bg-white {
+  background-color: #1e293b !important;
+}
+
+html.dark .bg-slate-50 {
+  background-color: #1e293b !important;
+}
+
+html.dark .bg-slate-100 {
+  background-color: #334155 !important;
+}
+
+html.dark .text-\[\#0B1F3A\] {
+  color: #f1f5f9 !important;
+}
+
+html.dark .text-\[\#6B6B66\] {
+  color: #cbd5e1 !important;
+}
+
+html.dark .border-\[\#E7E5E2\] {
+  border-color: #334155 !important;
+}
+
+html.dark .border-\[\#F1F0ED\] {
+  border-color: #334155 !important;
+}
+
+html.dark .hover\:bg-\[\#F1F0ED\]:hover {
+  background-color: #334155 !important;
+}
+
+html.dark .hover\:bg-\[\#FAFAF9\]:hover {
+  background-color: #1e293b !important;
+}
+
+html.dark .text-foreground {
+  color: #f1f5f9;
+}
+
+html.dark .bg-background {
+  background-color: #0f172a;
+}
+
+html.dark .bg-card {
+  background-color: #1e293b;
+}
+
+html.dark .border-border {
+  border-color: #334155;
+}
+
+html.dark .text-muted-foreground {
+  color: #94a3b8;
+}
+
+html.dark .bg-muted {
+  background-color: #334155;
+}
+
+html.dark input,
+html.dark textarea,
+html.dark select {
+  background-color: #1e293b;
+  color: #f1f5f9;
+  border-color: #334155;
+}
+
+html.dark .bg-blue-50 {
+  background-color: rgba(30, 58, 138, 0.3) !important;
+  color: #dbeafe !important;
+}
+
+html.dark .bg-amber-50 {
+  background-color: rgba(120, 53, 15, 0.3) !important;
+  color: #fde68a !important;
+}
+
+html.dark .bg-emerald-50 {
+  background-color: rgba(6, 78, 59, 0.3) !important;
+  color: #a7f3d0 !important;
+}
+
+html.dark .bg-red-50 {
+  background-color: rgba(127, 29, 29, 0.3) !important;
+  color: #fecaca !important;
+}
+
+html.dark pre {
+  background-color: #020617 !important;
+}

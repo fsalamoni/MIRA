@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/lib/FirebaseAuthContext';
+import CommandPalette from '@/components/CommandPalette';
 import {
     Radar,
     LayoutDashboard,
@@ -26,6 +27,12 @@ import {
     BookOpen,
     GitCompare,
     Filter,
+    Zap,
+    FileCheck,
+    Activity,
+    Sun,
+    Moon,
+    Search,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -40,10 +47,14 @@ const NAV_ITEMS = [
     { name: 'Rastreamento', icon: GitBranch, path: '/Rastreamento', category: 'fiscalizacao' },
     { name: 'Chain Analytics', icon: Network, path: '/ChainAnalytics', category: 'fiscalizacao' },
     { name: 'Network Map', icon: Network, path: '/NetworkMap', category: 'fiscalizacao' },
+    { name: 'Sankey Fluxos', icon: Network, path: '/SankeyFluxos', category: 'fiscalizacao' },
+    { name: 'Heatmap Atividade', icon: Activity, path: '/HeatmapAtividade', category: 'fiscalizacao' },
     { name: 'OSINT', icon: ScanSearch, path: '/OSINT', category: 'fiscalizacao' },
     { name: 'Relatórios', icon: Shield, path: '/Relatorios', category: 'fiscalizacao' },
+    { name: 'Rules Engine', icon: Zap, path: '/RulesEngine', category: 'fiscalizacao' },
     { name: 'Busca Avançada', icon: Filter, path: '/BuscaAvancada', category: 'fiscalizacao' },
     { name: 'Comparador', icon: GitCompare, path: '/ComparadorClusters', category: 'fiscalizacao' },
+    { name: 'Compliance', icon: FileCheck, path: '/ComplianceChecklist', category: 'operacional' },
     { name: 'Expedientes', icon: FileText, path: '/Expedientes', category: 'operacional' },
     { name: 'Parcerias', icon: Handshake, path: '/Parcerias', category: 'operacional' },
     { name: 'Documentação', icon: BookOpen, path: '/Documentacao', category: 'operacional' },
@@ -73,6 +84,23 @@ export default function Layout({ children, currentPageName }) {
             localStorage.setItem('mira-sidebar-collapsed', String(collapsed));
         }
     }, [collapsed]);
+
+    // Dark mode
+    const [darkMode, setDarkMode] = useState(() => {
+        if (typeof window === 'undefined') return false;
+        return localStorage.getItem('mira-dark-mode') === 'true';
+    });
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        if (darkMode) {
+            document.documentElement.classList.add('dark');
+            localStorage.setItem('mira-dark-mode', 'true');
+        } else {
+            document.documentElement.classList.remove('dark');
+            localStorage.setItem('mira-dark-mode', 'false');
+        }
+    }, [darkMode]);
 
     // Proteger rotas autenticadas
     useEffect(() => {
@@ -250,20 +278,43 @@ export default function Layout({ children, currentPageName }) {
 
             {/* Main */}
             <main className="flex-1 min-w-0 lg:ml-0">
-                {/* Top bar (mobile) */}
-                <header className="lg:hidden h-16 bg-white border-b border-[#E7E5E2] flex items-center px-4 sticky top-0 z-30">
+                {/* Top bar */}
+                <header className="h-14 bg-white border-b border-[#E7E5E2] flex items-center px-4 sticky top-0 z-30 gap-3">
                     <button
                         onClick={() => setSidebarOpen(true)}
-                        className="w-9 h-9 flex items-center justify-center rounded-lg text-[#0B1F3A] hover:bg-[#F1F0ED]"
+                        className="lg:hidden w-9 h-9 flex items-center justify-center rounded-lg text-[#0B1F3A] hover:bg-[#F1F0ED]"
                     >
                         <Menu className="w-5 h-5" />
                     </button>
-                    <div className="flex items-center gap-2 ml-2">
+                    <div className="flex items-center gap-2">
                         <Radar className="w-5 h-5 text-[#0B1F3A]" />
-                        <span className="font-bold text-[#0B1F3A]">MIRA</span>
+                        <span className="font-bold text-[#0B1F3A] hidden sm:inline">MIRA</span>
                     </div>
+
+                    {/* Search trigger for Command Palette */}
+                    <button
+                        onClick={() => {
+                            const evt = new KeyboardEvent('keydown', { key: 'k', metaKey: true, ctrlKey: true });
+                            window.dispatchEvent(evt);
+                        }}
+                        className="ml-auto flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#F1F0ED] hover:bg-slate-200 text-sm text-[#6B6B66] transition min-w-[200px] max-w-[400px]"
+                    >
+                        <Search className="w-4 h-4" />
+                        <span className="flex-1 text-left hidden md:inline">Buscar páginas, ações ou endereço...</span>
+                        <span className="flex-1 text-left md:hidden">Buscar...</span>
+                        <kbd className="hidden md:inline px-1.5 py-0.5 bg-white border rounded text-xs">⌘K</kbd>
+                    </button>
+
+                    {/* Dark mode toggle */}
+                    <button
+                        onClick={() => setDarkMode(!darkMode)}
+                        className="w-9 h-9 flex items-center justify-center rounded-lg text-[#0B1F3A] hover:bg-[#F1F0ED] transition"
+                        title={darkMode ? 'Modo claro' : 'Modo escuro'}
+                    >
+                        {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                    </button>
                 </header>
-                <div className="min-h-[calc(100vh-4rem)] lg:min-h-screen">
+                <div className="min-h-[calc(100vh-3.5rem)] lg:min-h-screen">
                     {isDetail && (
                         <div className="bg-blue-50 border-b border-blue-200 px-4 py-1.5 text-xs text-blue-900">
                             <span className="font-medium">Modo detalhe:</span> você está visualizando um registro específico. Use a sidebar para navegar entre módulos.
@@ -272,6 +323,7 @@ export default function Layout({ children, currentPageName }) {
                     {children}
                 </div>
             </main>
+            <CommandPalette />
         </div>
     );
 }

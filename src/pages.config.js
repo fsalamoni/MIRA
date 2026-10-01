@@ -34,6 +34,11 @@ import OSINTDetalhe from './pages/OSINTDetalhe';
 import ComparadorClusters from './pages/ComparadorClusters';
 import BuscaAvancada from './pages/BuscaAvancada';
 import NetworkMap from './pages/NetworkMap';
+import SankeyFluxos from './pages/SankeyFluxos';
+import HeatmapAtividade from './pages/HeatmapAtividade';
+import LabelDetalhe from './pages/LabelDetalhe';
+import ComplianceChecklist from './pages/ComplianceChecklist';
+import RulesEngine from './pages/RulesEngine';
 import __Layout from './Layout.jsx';
 
 
@@ -58,8 +63,11 @@ export const PAGES = {
     "Rastreamento": Rastreamento,
     "ChainAnalytics": ChainAnalytics,
     "ClusterDetalhe": ClusterDetalhe,
+    "LabelDetalhe": LabelDetalhe,
     "ComparadorClusters": ComparadorClusters,
     "NetworkMap": NetworkMap,
+    "SankeyFluxos": SankeyFluxos,
+    "HeatmapAtividade": HeatmapAtividade,
     "EnderecoDetalhe": EnderecoDetalhe,
     "BuscaAvancada": BuscaAvancada,
     "OSINT": OSINT,
@@ -69,6 +77,8 @@ export const PAGES = {
     "Expedientes": Expedientes,
     "Parcerias": Parcerias,
     "Documentacao": Documentacao,
+    "ComplianceChecklist": ComplianceChecklist,
+    "RulesEngine": RulesEngine,
 };
 
 export const pagesConfig = {
