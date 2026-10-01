@@ -29,6 +29,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { miraService } from '@/services/miraService';
+import { sha256 } from '@/lib/hash';
 import {
     CASE_STATUSES,
     CASE_STATUS_COLORS,
@@ -130,19 +131,21 @@ export default function InvestigacaoDetalhe() {
             toast.error('Descrição é obrigatória');
             return;
         }
-        // Para o protótipo, geramos hash fake + adicionamos ao state
-        const fakeHash = Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+        // Hash real via Web Crypto API
+        const payload = `${evidenceForm.kind}|${evidenceForm.description}|${evidenceForm.reference || ''}|analyst_demo@mira.platform|${new Date().toISOString()}`;
+        const realHash = await sha256(payload);
+
         const newEvidence = {
             id: `evd-${Date.now()}`,
             kind: evidenceForm.kind,
             description: evidenceForm.description,
             reference: evidenceForm.reference,
-            hash: fakeHash,
+            hash: realHash,
             collected_at: new Date(),
             collected_by: 'analyst_demo@mira.platform',
         };
         setEvidence((prev) => [...prev, newEvidence]);
-        toast.success('Evidência adicionada à cadeia de custódia');
+        toast.success('Evidência registrada com hash SHA-256 real');
         setEvidenceOpen(false);
         setEvidenceForm({ kind: EVIDENCE_KINDS.TRANSACTION, description: '', reference: '' });
     };

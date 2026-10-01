@@ -102,6 +102,19 @@ export default function Layout({ children, currentPageName }) {
         }
     }, [darkMode]);
 
+    // Command Palette (⌘K / Ctrl+K)
+    const [paletteOpen, setPaletteOpen] = useState(false);
+    useEffect(() => {
+        const handler = (e) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+                e.preventDefault();
+                setPaletteOpen((o) => !o);
+            }
+        };
+        window.addEventListener('keydown', handler);
+        return () => window.removeEventListener('keydown', handler);
+    }, []);
+
     // Proteger rotas autenticadas
     useEffect(() => {
         if (isLoadingAuth) return;
@@ -323,7 +336,7 @@ export default function Layout({ children, currentPageName }) {
                     {children}
                 </div>
             </main>
-            <CommandPalette />
+            <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
         </div>
     );
 }

@@ -1,138 +1,213 @@
 // ============================================================================
-// MIRA — Command Palette (busca global ⌘K)
+// MIRA — Command Palette (⌘K / Ctrl+K)
 // ============================================================================
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Search, ArrowRight, Hash } from 'lucide-react';
+import {
+    Search, Wallet, Coins, Bell, Network, Shield,
+    Activity, BookOpen, BarChart3, FileSearch,
+    GitBranch, ArrowRight, Zap, Filter, Layers,
+    ClipboardList, Globe,
+} from 'lucide-react';
+import miraService from '@/services/miraService';
 
-const SHORTCUTS = [
-    { name: 'Ir para Dashboard', path: '/Dashboard', icon: '🏠', keywords: ['dashboard', 'home', 'inicio', 'principal'] },
-    { name: 'Ver Investigações', path: '/Investigacoes', icon: '🔍', keywords: ['investigacao', 'caso', 'casos'] },
-    { name: 'Ver Wallets', path: '/Wallets', icon: '👛', keywords: ['wallet', 'wallets', 'carteira'] },
-    { name: 'Ver Transações', path: '/Transacoes', icon: '💱', keywords: ['transacao', 'transacoes', 'tx'] },
-    { name: 'Ver Alertas', path: '/Alertas', icon: '🔔', keywords: ['alerta', 'alertas', 'alarme'] },
-    { name: 'Rastreamento', path: '/Rastreamento', icon: '🌐', keywords: ['rastreamento', 'trace', 'grafo'] },
-    { name: 'Chain Analytics', path: '/ChainAnalytics', icon: '📊', keywords: ['analytics', 'chain', 'estatistica'] },
-    { name: 'Network Map', path: '/NetworkMap', icon: '🗺️', keywords: ['network', 'mapa', 'macro'] },
-    { name: 'Sankey Fluxos', path: '/SankeyFluxos', icon: '🌊', keywords: ['sankey', 'fluxo', 'sankey'] },
-    { name: 'Heatmap Atividade', path: '/HeatmapAtividade', icon: '🔥', keywords: ['heatmap', 'calor', 'atividade', 'temporal'] },
-    { name: 'OSINT', path: '/OSINT', icon: '🔎', keywords: ['osint', 'open source', 'inteligencia'] },
-    { name: 'Relatórios', path: '/Relatorios', icon: '📄', keywords: ['relatorio', 'relatorios'] },
-    { name: 'Rules Engine', path: '/RulesEngine', icon: '⚡', keywords: ['rules', 'regras', 'engine', 'alertas'] },
-    { name: 'Busca Avançada', path: '/BuscaAvancada', icon: '🔍', keywords: ['busca', 'pesquisa', 'avancada'] },
-    { name: 'Comparador de Clusters', path: '/ComparadorClusters', icon: '⚖️', keywords: ['comparador', 'comparar', 'diff'] },
-    { name: 'Compliance Checklist', path: '/ComplianceChecklist', icon: '✅', keywords: ['compliance', 'kyc', 'aml', 'checklist'] },
-    { name: 'Expedientes', path: '/Expedientes', icon: '📁', keywords: ['expediente', 'expedientes'] },
-    { name: 'Parcerias', path: '/Parcerias', icon: '🤝', keywords: ['parceria', 'parcerias'] },
-    { name: 'Documentação', path: '/Documentacao', icon: '📚', keywords: ['documentacao', 'docs', 'help'] },
-    { name: 'Workspaces', path: '/Workspace', icon: '🏢', keywords: ['workspace', 'organizacao'] },
-    { name: 'Perfil', path: '/Profile', icon: '👤', keywords: ['perfil', 'profile', 'usuario'] },
-    { name: 'Admin', path: '/Admin', icon: '⚙️', keywords: ['admin', 'administracao'] },
+// Catálogo de comandos / destinos
+const STATIC_COMMANDS = [
+    { id: 'go-dashboard', name: 'Ir para Dashboard', icon: BarChart3, action: (n) => n('/Dashboard'), category: 'Navegação' },
+    { id: 'go-investigacoes', name: 'Ir para Investigações', icon: FileSearch, action: (n) => n('/Investigacoes'), category: 'Navegação' },
+    { id: 'go-investigacoes-kanban', name: 'Ir para Kanban de Casos', icon: Layers, action: (n) => n('/InvestigacoesKanban'), category: 'Navegação' },
+    { id: 'go-wallets', name: 'Ir para Wallets', icon: Wallet, action: (n) => n('/Wallets'), category: 'Navegação' },
+    { id: 'go-transacoes', name: 'Ir para Transações', icon: Coins, action: (n) => n('/Transacoes'), category: 'Navegação' },
+    { id: 'go-alertas', name: 'Ir para Alertas', icon: Bell, action: (n) => n('/Alertas'), category: 'Navegação' },
+    { id: 'go-rastreamento', name: 'Ir para Rastreamento', icon: GitBranch, action: (n) => n('/Rastreamento'), category: 'Navegação' },
+    { id: 'go-chain-analytics', name: 'Ir para Chain Analytics', icon: Network, action: (n) => n('/ChainAnalytics'), category: 'Navegação' },
+    { id: 'go-network-map', name: 'Ir para Network Map', icon: Network, action: (n) => n('/NetworkMap'), category: 'Navegação' },
+    { id: 'go-osint', name: 'Ir para OSINT', icon: Globe, action: (n) => n('/OSINT'), category: 'Navegação' },
+    { id: 'go-relatorios', name: 'Ir para Relatórios', icon: Shield, action: (n) => n('/Relatorios'), category: 'Navegação' },
+    { id: 'go-documentacao', name: 'Ir para Documentação', icon: BookOpen, action: (n) => n('/Documentacao'), category: 'Navegação' },
+    { id: 'go-busca-avancada', name: 'Ir para Busca Avançada', icon: Filter, action: (n) => n('/BuscaAvancada'), category: 'Navegação' },
+    { id: 'go-comparador', name: 'Ir para Comparador de Clusters', icon: GitCompare, action: (n) => n('/ComparadorClusters'), category: 'Navegação' },
+    { id: 'go-sankey', name: 'Ir para Diagrama Sankey', icon: Network, action: (n) => n('/SankeyFluxos'), category: 'Navegação' },
+    { id: 'go-heatmap', name: 'Ir para Heatmap de Atividade', icon: Activity, action: (n) => n('/HeatmapAtividade'), category: 'Navegação' },
+    { id: 'go-compliance', name: 'Ir para Compliance Checklist', icon: ClipboardList, action: (n) => n('/ComplianceChecklist'), category: 'Navegação' },
+    { id: 'go-rules-engine', name: 'Ir para Editor de Regras', icon: Zap, action: (n) => n('/RulesEngine'), category: 'Navegação' },
+    { id: 'go-profile', name: 'Ir para Perfil', icon: User, action: (n) => n('/Profile'), category: 'Navegação' },
+    { id: 'go-admin', name: 'Ir para Admin', icon: Shield, action: (n) => n('/Admin'), category: 'Navegação' },
+    { id: 'go-help', name: 'Ir para Ajuda', icon: BookOpen, action: (n) => n('/Help'), category: 'Navegação' },
 ];
 
-export default function CommandPalette() {
-    const [open, setOpen] = useState(false);
-    const [query, setQuery] = useState('');
+// Aliases
+import { User, GitCompare } from 'lucide-react';
+
+export default function CommandPalette({ open, onClose }) {
     const navigate = useNavigate();
+    const [query, setQuery] = useState('');
+    const [selectedIdx, setSelectedIdx] = useState(0);
+    const [dynamicResults, setDynamicResults] = useState([]);
+    const inputRef = useRef(null);
 
     useEffect(() => {
-        const onKey = (e) => {
-            if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-                e.preventDefault();
-                setOpen((o) => !o);
-            }
-            if (e.key === 'Escape' && open) {
-                setOpen(false);
-            }
-        };
-        window.addEventListener('keydown', onKey);
-        return () => window.removeEventListener('keydown', onKey);
+        if (open && inputRef.current) {
+            inputRef.current.focus();
+        }
+        if (!open) {
+            setQuery('');
+            setSelectedIdx(0);
+        }
     }, [open]);
 
-    const filtered = useMemo(() => {
-        if (!query) return SHORTCUTS;
-        const q = query.toLowerCase();
-        return SHORTCUTS.filter((s) =>
-            s.name.toLowerCase().includes(q) ||
-            s.path.toLowerCase().includes(q) ||
-            s.keywords.some((k) => k.includes(q))
-        );
+    // Busca dinâmica quando query >= 3 chars
+    useEffect(() => {
+        if (query.length < 3) {
+            setDynamicResults([]);
+            return;
+        }
+        const doSearch = async () => {
+            const results = [];
+
+            // Buscar wallets
+            try {
+                const ws = await miraService.listWallets({ filters: { search: query }, pageSize: 5 });
+                ws.data.forEach((w) => {
+                    results.push({
+                        id: `wallet-${w.id}`,
+                        name: w.label,
+                        detail: w.address,
+                        icon: Wallet,
+                        category: 'Wallet',
+                        action: () => navigate(`/EnderecoDetalhe?address=${encodeURIComponent(w.address)}`),
+                    });
+                });
+            } catch (e) {}
+
+            // Buscar casos
+            try {
+                const cs = await miraService.listCases({ filters: { search: query }, pageSize: 5 });
+                cs.data.forEach((c) => {
+                    results.push({
+                        id: `case-${c.id}`,
+                        name: c.title,
+                        detail: c.number,
+                        icon: FileSearch,
+                        category: 'Caso',
+                        action: () => navigate(`/InvestigacaoDetalhe/${c.id}`),
+                    });
+                });
+            } catch (e) {}
+
+            setDynamicResults(results);
+        };
+
+        const debounce = setTimeout(doSearch, 200);
+        return () => clearTimeout(debounce);
     }, [query]);
 
-    const handleSelect = (path) => {
-        setOpen(false);
-        setQuery('');
-        navigate(path);
+    const allResults = useMemo(() => {
+        const q = query.toLowerCase();
+        const staticFiltered = STATIC_COMMANDS.filter((c) =>
+            c.name.toLowerCase().includes(q) || c.category.toLowerCase().includes(q)
+        ).map((c) => ({
+            id: c.id,
+            name: c.name,
+            detail: c.category,
+            icon: c.icon,
+            category: c.category,
+            action: () => c.action(navigate),
+        }));
+
+        return [...dynamicResults, ...staticFiltered].slice(0, 20);
+    }, [query, dynamicResults]);
+
+    useEffect(() => {
+        setSelectedIdx(0);
+    }, [query, allResults.length]);
+
+    const handleSelect = (item) => {
+        item.action();
+        onClose();
     };
 
-    // Detecta endereço na query
-    const addressMatch = useMemo(() => {
-        if (/^(0x|b c1|bc1|T)[a-zA-Z0-9]{20,}/.test(query.trim())) {
-            return query.trim();
+    const handleKey = (e) => {
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            setSelectedIdx((i) => Math.min(i + 1, allResults.length - 1));
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            setSelectedIdx((i) => Math.max(0, i - 1));
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            if (allResults[selectedIdx]) handleSelect(allResults[selectedIdx]);
+        } else if (e.key === 'Escape') {
+            onClose();
         }
-        return null;
-    }, [query]);
+    };
+
+    if (!open) return null;
 
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
-            <DialogContent className="max-w-xl p-0 gap-0">
-                <div className="border-b">
-                    <div className="flex items-center px-3 py-2">
-                        <Search className="h-4 w-4 text-muted-foreground mr-2" />
-                        <Input
-                            value={query}
-                            onChange={(e) => setQuery(e.target.value)}
-                            placeholder="Buscar páginas, ações ou endereço..."
-                            className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 px-0"
-                            autoFocus
-                        />
-                        <Badge variant="outline" className="text-xs ml-2">⌘K</Badge>
-                    </div>
+        <div
+            className="fixed inset-0 z-50 bg-black/40 flex items-start justify-center pt-24"
+            onClick={onClose}
+        >
+            <div
+                className="bg-white rounded-lg shadow-2xl w-full max-w-2xl mx-4 overflow-hidden"
+                onClick={(e) => e.stopPropagation()}
+            >
+                <div className="flex items-center gap-2 p-4 border-b">
+                    <Search className="h-5 w-5 text-muted-foreground" />
+                    <input
+                        ref={inputRef}
+                        value={query}
+                        onChange={(e) => setQuery(e.target.value)}
+                        onKeyDown={handleKey}
+                        placeholder="Buscar páginas, wallets, casos, endereços..."
+                        className="flex-1 outline-none text-sm"
+                    />
+                    <kbd className="hidden md:inline-block px-2 py-0.5 bg-slate-100 border rounded text-xs">ESC</kbd>
                 </div>
                 <div className="max-h-96 overflow-y-auto">
-                    {addressMatch && (
-                        <div
-                            className="px-3 py-2 hover:bg-slate-100 cursor-pointer border-b flex items-center gap-2"
-                            onClick={() => handleSelect(`/EnderecoDetalhe?address=${encodeURIComponent(addressMatch)}`)}
-                        >
-                            <Hash className="h-4 w-4" />
-                            <div className="flex-1">
-                                <div className="font-medium text-sm">Analisar endereço</div>
-                                <div className="text-xs font-mono text-muted-foreground">{addressMatch.slice(0, 20)}…</div>
-                            </div>
-                            <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                        </div>
-                    )}
-                    {filtered.length === 0 ? (
-                        <div className="px-4 py-8 text-center text-muted-foreground text-sm">
-                            Nenhum resultado para "{query}"
+                    {allResults.length === 0 ? (
+                        <div className="p-8 text-center text-muted-foreground text-sm">
+                            Nenhum resultado. Tente outro termo.
                         </div>
                     ) : (
-                        filtered.map((s) => (
-                            <div
-                                key={s.path}
-                                className="px-3 py-2 hover:bg-slate-100 cursor-pointer flex items-center gap-3"
-                                onClick={() => handleSelect(s.path)}
-                            >
-                                <span className="text-xl">{s.icon}</span>
-                                <div className="flex-1">
-                                    <div className="font-medium text-sm">{s.name}</div>
-                                    <div className="text-xs text-muted-foreground font-mono">{s.path}</div>
-                                </div>
-                                <ArrowRight className="h-3 w-3 text-muted-foreground" />
-                            </div>
-                        ))
+                        <div className="py-1">
+                            {allResults.map((item, idx) => {
+                                const Icon = item.icon;
+                                return (
+                                    <div
+                                        key={item.id}
+                                        className={`px-3 py-2 cursor-pointer flex items-center gap-3 ${
+                                            idx === selectedIdx ? 'bg-slate-100' : 'hover:bg-slate-50'
+                                        }`}
+                                        onClick={() => handleSelect(item)}
+                                        onMouseEnter={() => setSelectedIdx(idx)}
+                                    >
+                                        <Icon className="h-4 w-4 text-muted-foreground" />
+                                        <div className="flex-1 min-w-0">
+                                            <div className="text-sm font-medium truncate">{item.name}</div>
+                                            {item.detail && (
+                                                <div className="text-xs text-muted-foreground truncate">
+                                                    {item.detail}
+                                                </div>
+                                            )}
+                                        </div>
+                                        <Badge variant="outline" className="text-xs">{item.category}</Badge>
+                                        <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                                    </div>
+                                );
+                            })}
+                        </div>
                     )}
                 </div>
-                <div className="border-t px-3 py-2 text-xs text-muted-foreground flex items-center justify-between">
-                    <span>{filtered.length} resultado(s)</span>
-                    <span>↑↓ navegar · ↵ abrir · esc fechar</span>
+                <div className="px-4 py-2 border-t bg-slate-50 text-xs text-muted-foreground flex items-center gap-3">
+                    <span>↑↓ navegar</span>
+                    <span>⏎ selecionar</span>
+                    <span>ESC fechar</span>
+                    <span className="ml-auto">⌘K</span>
                 </div>
-            </DialogContent>
-        </Dialog>
+            </div>
+        </div>
     );
 }
