@@ -130,6 +130,7 @@ export default function InvestigacoesKanban() {
                 {columns.map((col) => {
                     const items = casesByStatus[col.key] || [];
                     const color = CASE_STATUS_COLORS[col.key];
+                    const urgent = items.filter((c) => c.priority === 'urgent').length;
                     return (
                         <Card key={col.key} className="border-[#E7E5E2]">
                             <CardContent className="p-3">
@@ -137,6 +138,7 @@ export default function InvestigacoesKanban() {
                                     {col.icon} {col.label}
                                 </div>
                                 <div className={`text-2xl font-bold ${color.text}`}>{items.length}</div>
+                                {urgent > 0 && <div className="text-[10px] text-red-600 mt-0.5">⚠ {urgent} urgente(s)</div>}
                             </CardContent>
                         </Card>
                     );
