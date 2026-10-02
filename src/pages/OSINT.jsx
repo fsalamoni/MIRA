@@ -83,6 +83,54 @@ const SOURCES = [
             { name: 'COAF', url: 'https://www.gov.br/coaf/', desc: 'Conselho de Controle de Atividades Financeiras', coverage: 'Brasil' },
         ],
     },
+    {
+        category: 'Forensics Tools',
+        icon: '🛠️',
+        sources: [
+            { name: 'Breadcrumbs (App)', url: 'https://breadcrumbs.app/', desc: 'Ferramenta gratuita de visualização on-chain', coverage: 'EVM chains' },
+            { name: 'MistTrack (SlowMist)', url: 'https://misttrack.io/', desc: 'Plataforma de tracking da SlowMist', coverage: 'Multi-chain' },
+            { name: 'OKLink', url: 'https://www.oklink.com/', desc: 'Multi-chain explorer com risk scoring', coverage: 'Multi-chain' },
+            { name: 'Bitquery', url: 'https://bitquery.io/', desc: 'GraphQL queries para blockchains', coverage: 'EVM chains' },
+        ],
+    },
+    {
+        category: 'Threat Intel',
+        icon: '🎯',
+        sources: [
+            { name: 'MITRE ATT&CK', url: 'https://attack.mitre.org/', desc: 'Matriz de táticas de atacantes cripto', coverage: 'Global' },
+            { name: 'CISA Advisories', url: 'https://www.cisa.gov/news-events/cybersecurity-advisories', desc: 'Alertas de segurança do DHS', coverage: 'Global' },
+            { name: 'US-CERT', url: 'https://www.cisa.gov/', desc: 'Cybersecurity & Infrastructure Security Agency', coverage: 'Global' },
+            { name: 'VirusTotal', url: 'https://www.virustotal.com/', desc: 'Análise de malware (incluso cripto-ransomware)', coverage: 'Global' },
+        ],
+    },
+    {
+        category: 'Bridges & Cross-Chain',
+        icon: '🌉',
+        sources: [
+            { name: 'LayerZero Scan', url: 'https://layerzeroscan.com/', desc: 'Mensagens cross-chain LayerZero', coverage: 'Multi-chain' },
+            { name: 'Across Protocol', url: 'https://app.across.to/', desc: 'Bridge com telemetria pública', coverage: 'Ethereum L2' },
+            { name: 'Stargate', url: 'https://stargate.finance/', desc: 'Bridge LayerZero', coverage: 'Multi-chain' },
+            { name: 'Wormhole Portal', url: 'https://wormhole.com/', desc: 'Bridge multi-chain', coverage: 'Multi-chain' },
+        ],
+    },
+    {
+        category: 'NFT & Tokens',
+        icon: '🎨',
+        sources: [
+            { name: 'OpenSea', url: 'https://opensea.io/', desc: 'Maior marketplace de NFTs', coverage: 'Ethereum, Polygon' },
+            { name: 'X2Y2', url: 'https://x2y2.io/', desc: 'Marketplace NFT com histórico on-chain', coverage: 'Ethereum' },
+            { name: 'Blur', url: 'https://blur.io/', desc: 'NFT marketplace pro', coverage: 'Ethereum' },
+        ],
+    },
+    {
+        category: 'DEXs & DeFi',
+        icon: '💱',
+        sources: [
+            { name: 'Uniswap Info', url: 'https://info.uniswap.org/', desc: 'Telemetria da Uniswap', coverage: 'Ethereum, L2s' },
+            { name: 'DeFiLlama', url: 'https://defillama.com/', desc: 'TVL e dados DeFi multi-chain', coverage: 'Multi-chain' },
+            { name: 'DEX Screener', url: 'https://dexscreener.com/', desc: 'Telemetria de pares DEX', coverage: 'Multi-chain' },
+        ],
+    },
 ];
 
 const QUICK_LOOKUPS = [
@@ -92,6 +140,10 @@ const QUICK_LOOKUPS = [
     { address: '0x05FFB2D3BC58B6fEcb6b6bA1fF8F0f5E7bA3a8b2', label: 'Lazarus Group (DPRK)' },
     { address: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045', label: 'Vitalik Buterin (Pessoa pública)' },
     { address: '0xDFd5293D8e459F7b10aF0Da8a52d3b9d8c1fA0d5', label: 'Coinbase 5 (Exchange)' },
+    { address: '0x1da5821544e25e63683a825f4d8d7c3d8e3a5a2c', label: 'Bitfinex Hack 2016' },
+    { address: '0x098B716B8A215143721c757564A6d95324ca9CaE', label: 'Ronin Bridge Hack 2022' },
+    { address: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa', label: 'Genesis Block (BTC)' },
+    { address: 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh', label: 'Satoshi-era wallet' },
 ];
 
 export default function OSINT() {

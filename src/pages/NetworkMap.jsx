@@ -204,6 +204,29 @@ export default function NetworkMap() {
                 </AlertDescription>
             </Alert>
 
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <Card><CardContent className="pt-4">
+                    <div className="text-xs text-muted-foreground uppercase">Clusters visíveis</div>
+                    <div className="text-2xl font-bold mt-1">{simulation.nodes.length}</div>
+                </CardContent></Card>
+                <Card><CardContent className="pt-4">
+                    <div className="text-xs text-muted-foreground uppercase">Conexões</div>
+                    <div className="text-2xl font-bold mt-1 text-blue-600">{simulation.edges.length}</div>
+                </CardContent></Card>
+                <Card><CardContent className="pt-4">
+                    <div className="text-xs text-muted-foreground uppercase">Alto risco</div>
+                    <div className="text-2xl font-bold mt-1 text-red-600">
+                        {simulation.nodes.filter((n) => n.risk >= 80).length}
+                    </div>
+                </CardContent></Card>
+                <Card><CardContent className="pt-4">
+                    <div className="text-xs text-muted-foreground uppercase">Total wallets</div>
+                    <div className="text-2xl font-bold mt-1 text-emerald-600">
+                        {simulation.nodes.reduce((s, n) => s + (n.size || 0), 0).toLocaleString('pt-BR')}
+                    </div>
+                </CardContent></Card>
+            </div>
+
             <div className="flex flex-wrap items-center gap-2">
                 <Button size="sm" variant={highlight === 'all' ? 'default' : 'outline'} onClick={() => { setHighlight('all'); buildSimulation(clusters); }}>
                     <Layers className="h-4 w-4 mr-1" /> Todos ({clusters.length})

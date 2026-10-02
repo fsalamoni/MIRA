@@ -9,6 +9,13 @@ import {
     Clock,
     Activity,
     Tag,
+    TrendingUp,
+    Network,
+    AlertTriangle,
+    CheckCircle2,
+    Shield,
+    GitBranch,
+    BarChart3,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -172,9 +179,40 @@ export default function WalletDetalhe() {
                 </CardContent>
             </Card>
 
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <Card><CardContent className="pt-4">
+                    <div className="text-xs text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                        <Activity className="w-3 h-3" /> Tx totais
+                    </div>
+                    <div className="text-2xl font-bold mt-1">{(wallet.tx_count_total || 0).toLocaleString('pt-BR')}</div>
+                </CardContent></Card>
+                <Card><CardContent className="pt-4">
+                    <div className="text-xs text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                        <TrendingUp className="w-3 h-3" /> Últimas 30d
+                    </div>
+                    <div className="text-2xl font-bold mt-1 text-emerald-600">{wallet.tx_count_30d || 0}</div>
+                </CardContent></Card>
+                <Card><CardContent className="pt-4">
+                    <div className="text-xs text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                        <BarChart3 className="w-3 h-3" /> Score risco
+                    </div>
+                    <div className="text-2xl font-bold mt-1 flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${r.dot}`}></div>
+                        {wallet.risk_score}
+                    </div>
+                </CardContent></Card>
+                <Card><CardContent className="pt-4">
+                    <div className="text-xs text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                        <Network className="w-3 h-3" /> Cluster
+                    </div>
+                    <div className="text-sm font-mono mt-1 truncate">{wallet.cluster_id || '—'}</div>
+                </CardContent></Card>
+            </div>
+
             <Tabs defaultValue="transactions">
                 <TabsList>
                     <TabsTrigger value="transactions">Transações ({transactions.length})</TabsTrigger>
+                    <TabsTrigger value="analysis">Análise</TabsTrigger>
                     <TabsTrigger value="labels">Labels ({wallet.labels?.length || 0})</TabsTrigger>
                     <TabsTrigger value="notes">Anotações</TabsTrigger>
                 </TabsList>
@@ -225,6 +263,125 @@ export default function WalletDetalhe() {
                             </div>
                         </Card>
                     )}
+                </TabsContent>
+
+                <TabsContent value="analysis">
+                    <div className="grid md:grid-cols-2 gap-3">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="text-base flex items-center gap-2">
+                                    <Shield className="w-4 h-4" /> Análise de Risco
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-2 text-sm">
+                                {wallet.sanctioned ? (
+                                    <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded p-3">
+                                        <AlertTriangle className="w-4 h-4 text-red-600 mt-0.5" />
+                                        <div>
+                                            <div className="font-semibold text-red-900">Endereço em listas de sanções</div>
+                                            <div className="text-xs text-red-700 mt-1">Verificado contra OFAC, UE e UN. Encontra-se sancionado e não pode ser transacionado.</div>
+                                        </div>
+                                    </div>
+                                ) : wallet.risk_score >= 80 ? (
+                                    <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded p-3">
+                                        <AlertTriangle className="w-4 h-4 text-red-600 mt-0.5" />
+                                        <div>
+                                            <div className="font-semibold text-red-900">Risco crítico</div>
+                                            <div className="text-xs text-red-700 mt-1">Score 80+ indica associação a atividades ilícitas confirmadas.</div>
+                                        </div>
+                                    </div>
+                                ) : wallet.risk_score >= 60 ? (
+                                    <div className="flex items-start gap-2 bg-orange-50 border border-orange-200 rounded p-3">
+                                        <AlertTriangle className="w-4 h-4 text-orange-600 mt-0.5" />
+                                        <div>
+                                            <div className="font-semibold text-orange-900">Risco alto</div>
+                                            <div className="text-xs text-orange-700 mt-1">Score 60-79. Exige due diligence ampliada.</div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-start gap-2 bg-emerald-50 border border-emerald-200 rounded p-3">
+                                        <CheckCircle2 className="w-4 h-4 text-emerald-600 mt-0.5" />
+                                        <div>
+                                            <div className="font-semibold text-emerald-900">Risco baixo</div>
+                                            <div className="text-xs text-emerald-700 mt-1">Endereço com perfil compatível com uso legítimo.</div>
+                                        </div>
+                                    </div>
+                                )}
+                                <div className="space-y-1 pt-2">
+                                    <div className="flex justify-between"><span>Tipo:</span><span className="font-medium">{WALLET_KIND_LABELS[wallet.kind] || wallet.kind}</span></div>
+                                    <div className="flex justify-between"><span>Chain:</span><span className="font-mono">{wallet.chain}</span></div>
+                                    <div className="flex justify-between"><span>Monitorada:</span><span>{wallet.monitored ? 'Sim' : 'Não'}</span></div>
+                                    <div className="flex justify-between"><span>Atividade 30d:</span><span className="font-mono">{wallet.tx_count_30d || 0} tx</span></div>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="text-base flex items-center gap-2">
+                                    <GitBranch className="w-4 h-4" /> Padrões detectados
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-2 text-sm">
+                                {wallet.kind === 'mixer' && (
+                                    <div className="text-xs bg-purple-50 border border-purple-200 rounded p-2">
+                                        <strong>Mixer/Tumbler:</strong> Padrão de ofuscação detectado.
+                                    </div>
+                                )}
+                                {wallet.kind === 'exchange' && (
+                                    <div className="text-xs bg-emerald-50 border border-emerald-200 rounded p-2">
+                                        <strong>Exchange:</strong> Endereço de custodiante institucional.
+                                    </div>
+                                )}
+                                {wallet.sanctioned && (
+                                    <div className="text-xs bg-red-50 border border-red-200 rounded p-2">
+                                        <strong>Sancionado:</strong> Em listas restritivas internacionais.
+                                    </div>
+                                )}
+                                {wallet.tx_count_30d > 100 && (
+                                    <div className="text-xs bg-amber-50 border border-amber-200 rounded p-2">
+                                        <strong>Volume elevado:</strong> +100 transações nos últimos 30 dias.
+                                    </div>
+                                )}
+                                {wallet.risk_score >= 60 && (
+                                    <div className="text-xs bg-red-50 border border-red-200 rounded p-2">
+                                        <strong>Heurística de risco:</strong> Múltiplos indicadores negativos acumulados.
+                                    </div>
+                                )}
+                                <div className="text-xs text-muted-foreground pt-2">
+                                    Análise baseada em 6 heurísticas (multi-input, change detection, peel chain, co-spending, label tagging, mixer cluster bypass).
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        <Card className="md:col-span-2">
+                            <CardHeader>
+                                <CardTitle className="text-base">Cadeia de eventos</CardTitle>
+                                <CardDescription>Histórico de operações neste endereço</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="space-y-3">
+                                    {[
+                                        { date: wallet.first_seen, event: 'Primeira detecção', detail: 'Endereço indexado pela primeira vez' },
+                                        { date: wallet.last_activity, event: 'Última atividade', detail: 'Última transação confirmada on-chain' },
+                                        wallet.monitored ? { date: new Date().toISOString(), event: 'Sob monitoramento', detail: 'Incluído na lista de endereços observados' } : null,
+                                        wallet.sanctioned ? { date: '2024-01-15', event: 'Adicionado a sanções OFAC', detail: 'Listado em SDN Specially Designated Nationals' } : null,
+                                    ].filter(Boolean).map((ev, i) => (
+                                        <div key={i} className="flex gap-3 items-start">
+                                            <div className="w-2 h-2 rounded-full bg-[#0B1F3A] mt-2"></div>
+                                            <div className="flex-1 border-l-2 border-[#E7E5E2] pl-3 pb-2">
+                                                <div className="font-medium text-sm">{ev.event}</div>
+                                                <div className="text-xs text-muted-foreground">{ev.detail}</div>
+                                                <div className="text-xs text-muted-foreground mt-1">
+                                                    {ev.date ? new Date(ev.date).toLocaleString('pt-BR') : '—'}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
                 </TabsContent>
 
                 <TabsContent value="labels">

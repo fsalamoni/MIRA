@@ -5,7 +5,7 @@
 import React, { useState } from 'react';
 import {
     HelpCircle, Search, BookOpen, MessageCircle,
-    Mail, Phone, FileText, PlayCircle, Globe, Network, Bell, Eye,
+    Mail, Phone, FileText, PlayCircle, Globe, Network, Bell, Eye, Shield, Activity, Keyboard,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -23,6 +23,8 @@ const FAQ_ITEMS = [
             { q: 'Como adicionar um caso?', a: 'Na página de Investigações, clique em "Nova investigação". Você pode vincular wallets, transações e alertas posteriormente.' },
             { q: 'O que é a risk score?', a: 'Score de 0-100 calculado com base em heurísticas: interação com sancionados (+50), mixers (+30), padrões suspeitos (+20), exchange (-10). Mostra o quão suspeito o endereço é.' },
             { q: 'Como funciona o modo offline (demo)?', a: 'No topo da página de Login, clique em "Entrar como demo". Isso bypassa Firebase Auth via localStorage. Os dados são perdidos ao limpar cache do navegador.' },
+            { q: 'Quais blockchains são suportadas?', a: 'MIRA suporta 14 chains: BTC, ETH, USDT_ETH, USDC_ETH, TRX, USDT_TRC20, BNB, MATIC, ARB, OP, BASE, AVAX, FTM, SOL. Cada uma com explorer oficial integrado.' },
+            { q: 'Como uso o Command Palette?', a: 'Pressione ⌘K (Mac) ou Ctrl+K (Windows/Linux) em qualquer lugar da plataforma. Digite páginas, ações ou endereços. Use ↑↓ para navegar, Enter para selecionar, Esc para fechar.' },
         ],
     },
     {
@@ -33,6 +35,8 @@ const FAQ_ITEMS = [
             { q: 'Como adicionar etiquetas/labels?', a: 'Em Wallets, abra uma wallet → Labels → Adicionar. Escolha a categoria (exchange, mixer, etc.) e fonte (manual, Etherscan, etc.).' },
             { q: 'Como exportar relatórios?', a: 'Em Relatórios, escolha o template → Configurar → Gerar. O sistema baixa um arquivo .txt com hash SHA-256 de integridade. Para PDF: produção usará geração real.' },
             { q: 'Como funciona a integração com OFAC?', a: 'A base indexa a lista SDN Specially Designated Nationals do US Treasury. Quando você busca um endereço, o sistema checa automaticamente e marca como sancionado.' },
+            { q: 'Como comparar dois clusters?', a: 'Use Comparador de Clusters (/ComparadorClusters). Selecione 2-4 clusters para análise lado a lado: wallets em comum, transações cruzadas, score de risco médio.' },
+            { q: 'O que é a Busca Avançada?', a: 'Em /BuscaAvancada você pode cruzar múltiplos filtros: chain, período, valor mínimo, range de risk score, presença de flags. Salva como view para uso futuro.' },
         ],
     },
     {
@@ -40,9 +44,11 @@ const FAQ_ITEMS = [
         questions: [
             { q: 'Como criar regras customizadas?', a: 'Em Rules Engine, você tem 6 templates prontos. Para customizar, edite uma existente ou crie nova: defina condições (AND lógico), ações (notify, block, create_case) e severidade.' },
             { q: 'O que é a análise heurística automática?', a: 'Em qualquer transação, MIRA roda 11 sinais: mixer interaction, sanctioned address, cross-chain bridge, rapid dispersion, darknet connection, etc. Score combinado gera risk_score.' },
-            { q: 'Como usar Command Palette?', a: 'Pressione ⌘K (Mac) ou Ctrl+K (Windows) em qualquer lugar. Digite páginas, ações ou endereços. Use ↑↓ para navegar, Enter para selecionar.' },
             { q: 'Como funciona a cadeia de custódia?', a: 'Cada evidência é registrada com hash SHA-256 real (Web Crypto API). Quando você adiciona uma evidência em Investigação → Cadeia de Custódia, o hash é calculado do payload {kind|description|reference|author|timestamp}.' },
             { q: 'Como auditar uma operação?', a: 'Use Compliance Checklist. 4 tipos disponíveis: KYC Básico, AML Avançado, Sanctions Screen, Chain Analysis. Auto-check preenche baseado em dados reais da wallet.' },
+            { q: 'O que é o Network Map?', a: 'Em /NetworkMap você vê a visão macro do ecossistema: cada cluster é um nó, conexões representam fluxos potenciais. Filtros: todos, reais, sancionados/risco. Use para entender hierarquias.' },
+            { q: 'Como funciona o Sankey?', a: 'Em /SankeyFluxos você vê fluxos de fundos em diagrama Sankey: origem → intermediários → destino. Implementação própria via BFS + canvas, com até 3 níveis de profundidade.' },
+            { q: 'Como gerar um Heatmap?', a: 'Em /HeatmapAtividade você vê atividade 365 dias em formato GitHub contributions + visualização horária por dia da semana. Identifica padrões temporais de uso.' },
         ],
     },
     {
@@ -51,17 +57,39 @@ const FAQ_ITEMS = [
             { q: 'MIRA está em conformidade com a LGPD?', a: 'Sim. MIRA processa apenas dados públicos de blockchains abertas e dados cadastrais de usuários sob consentimento. Não há crawling de dados pessoais. Veja os Termos de Uso.' },
             { q: 'A cadeia de custódia é válida juridicamente?', a: 'A versão atual simula a cadeia com hash SHA-256. Em produção, será integrada a carimbo de tempo RFC 3161 e armazenamento imutável, conforme art. 158-B do CPP e Manual de Cadeia de Custódia do CNMP.' },
             { q: 'Posso usar MIRA para fins privados?', a: 'Não. MIRA é destinado exclusivamente ao uso institucional do Ministério Público e órgãos de investigação. O uso particular requer autorização.' },
+            { q: 'Como funciona o compartilhamento internacional?', a: 'Através de Parcerias (menu lateral) você gerencia convênios com Interpol, Egmont Group, Europol, FBI Cyber, etc. O sistema suporta MoC (Memorando de Cooperação) e geração de ofícios multilíngues.' },
+            { q: 'Qual o prazo de retenção de dados?', a: 'Logs de auditoria: 5 anos. Dados de cadastro: enquanto conta ativa + 2 anos. Casos e evidências: 20 anos (regra processual). Logs de acesso: 1 ano. Configurável por tenant.' },
+        ],
+    },
+    {
+        category: 'Chains & Tokens',
+        questions: [
+            { q: 'O que é USDT_TRC20?', a: 'Tether (USDT) emitido na blockchain Tron, formato TRC-20. É o stablecoin mais usado no Brasil para remessas e P2P, devido a taxas menores que Ethereum.' },
+            { q: 'Por que ETH e ERC-20 são tratados separadamente?', a: 'MIRA indexa transações nativas de ETH e transferências de tokens ERC-20 (USDT, USDC, DAI) separadamente porque têm hashes diferentes e diferentes implicações forenses.' },
+            { q: 'XMR (Monero) é suportado?', a: 'Parcialmente. MIRA pode identificar endereços XMR e visualizar entradas/saídas na blockchain. No entanto, transações XMR são criptografadas (RingCT), então análise heurística é limitada.' },
+            { q: 'Como funciona em chains L2?', a: 'MIRA suporta Arbitrum (ARB), Optimism (OP), Base, Polygon (MATIC). Cada L2 tem seu próprio explorer. Transações cross-chain (bridges) são sinalizadas automaticamente.' },
         ],
     },
 ];
 
 const TUTORIALS = [
-    { title: 'Início rápido', duration: '5 min', description: 'Crie sua primeira investigação em 5 minutos', icon: PlayCircle },
-    { title: 'Rastreamento de fundos', duration: '12 min', description: 'Aprenda a usar o grafo Sankey', icon: Network },
-    { title: 'Análise de cluster', duration: '15 min', description: 'Identifique wallets relacionadas', icon: Eye },
-    { title: 'Geração de relatórios', duration: '8 min', description: 'Templates e cadeias de custódia', icon: FileText },
-    { title: 'Cooperação internacional', duration: '10 min', description: 'Como usar Interpol e Egmont', icon: Globe },
-    { title: 'Regras e alertas', duration: '20 min', description: 'Configure seu motor de alertas', icon: Bell },
+    { title: 'Início rápido', duration: '5 min', description: 'Crie sua primeira investigação em 5 minutos', icon: PlayCircle, steps: ['Login demo', 'Nova investigação', 'Adicionar wallet', 'Ver grafo'] },
+    { title: 'Rastreamento de fundos', duration: '12 min', description: 'Aprenda a usar o grafo Sankey', icon: Network, steps: ['Cole endereço', 'Configure profundidade', 'Analise grafo', 'Salve achados'] },
+    { title: 'Análise de cluster', duration: '15 min', description: 'Identifique wallets relacionadas', icon: Eye, steps: ['Abra ClusterDetalhe', 'Veja heurística', 'Compare clusters', 'Exporte análise'] },
+    { title: 'Geração de relatórios', duration: '8 min', description: 'Templates e cadeias de custódia', icon: FileText, steps: ['Escolha template', 'Adicione evidências', 'Verifique hash', 'Gere PDF'] },
+    { title: 'Cooperação internacional', duration: '10 min', description: 'Como usar Interpol e Egmont', icon: Globe, steps: ['Abra Parcerias', 'Selecione destino', 'Gere ofício', 'Acompanhe status'] },
+    { title: 'Regras e alertas', duration: '20 min', description: 'Configure seu motor de alertas', icon: Bell, steps: ['Abra Rules Engine', 'Crie template', 'Defina condições', 'Teste regra'] },
+    { title: 'Compliance Check', duration: '7 min', description: 'Auto-check de 4 checklists', icon: Shield, steps: ['Abra Compliance', 'Selecione wallet', 'Auto-check roda', 'Exporte resultado'] },
+    { title: 'Heatmap temporal', duration: '6 min', description: 'Identifique padrões temporais', icon: Activity, steps: ['Abra Heatmap', 'Filtre período', 'Veja picos', 'Investigue anomalias'] },
+];
+
+const SHORTCUTS = [
+    { keys: ['⌘', 'K'], desc: 'Abrir Command Palette' },
+    { keys: ['Ctrl', 'K'], desc: 'Abrir Command Palette' },
+    { keys: ['/'], desc: 'Foco na busca' },
+    { keys: ['Esc'], desc: 'Fechar dialog/palette' },
+    { keys: ['↑', '↓'], desc: 'Navegar lista' },
+    { keys: ['Enter'], desc: 'Selecionar item' },
 ];
 
 export default function Help() {
@@ -100,9 +128,10 @@ export default function Help() {
             </div>
 
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-                <TabsList className="grid grid-cols-4 w-full">
+                <TabsList className="grid grid-cols-5 w-full">
                     <TabsTrigger value="faq"><HelpCircle className="w-4 h-4 mr-1" />FAQ</TabsTrigger>
                     <TabsTrigger value="tutorials"><PlayCircle className="w-4 h-4 mr-1" />Tutoriais</TabsTrigger>
+                    <TabsTrigger value="shortcuts"><Keyboard className="w-4 h-4 mr-1" />Atalhos</TabsTrigger>
                     <TabsTrigger value="contact"><MessageCircle className="w-4 h-4 mr-1" />Contato</TabsTrigger>
                     <TabsTrigger value="about"><BookOpen className="w-4 h-4 mr-1" />Sobre</TabsTrigger>
                 </TabsList>
@@ -147,18 +176,75 @@ export default function Help() {
                                         <div className="flex-1">
                                             <h3 className="font-semibold">{t.title}</h3>
                                             <p className="text-sm text-muted-foreground mt-1">{t.description}</p>
-                                            <div className="flex items-center gap-2 mt-2">
+                                            <div className="flex items-center gap-2 mt-2 flex-wrap">
                                                 <Badge variant="outline" className="text-xs">{t.duration}</Badge>
+                                                {t.steps && (
+                                                    <span className="text-xs text-muted-foreground">
+                                                        {t.steps.length} passos
+                                                    </span>
+                                                )}
                                                 <Button size="sm" variant="ghost" className="text-xs h-7">
                                                     <PlayCircle className="w-3 h-3 mr-1" /> Assistir
                                                 </Button>
                                             </div>
+                                            {t.steps && (
+                                                <div className="mt-2 pt-2 border-t border-[#E7E5E2]">
+                                                    <ol className="text-xs text-muted-foreground space-y-0.5">
+                                                        {t.steps.map((s, i) => (
+                                                            <li key={i}>{i + 1}. {s}</li>
+                                                        ))}
+                                                    </ol>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 </CardContent>
                             </Card>
                         ))}
                     </div>
+                </TabsContent>
+
+                <TabsContent value="shortcuts" className="space-y-3">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-base">Atalhos de teclado</CardTitle>
+                            <CardDescription>Navegue mais rápido pela plataforma</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="space-y-2">
+                                {SHORTCUTS.map((s, i) => (
+                                    <div key={i} className="flex items-center justify-between p-2 border-b last:border-0">
+                                        <span className="text-sm">{s.desc}</span>
+                                        <div className="flex items-center gap-1">
+                                            {s.keys.map((k, j) => (
+                                                <kbd key={j} className="px-2 py-0.5 text-xs font-mono bg-slate-100 border border-slate-300 rounded">
+                                                    {k}
+                                                </kbd>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-base">Powers do Command Palette ⌘K</CardTitle>
+                        </CardHeader>
+                        <CardContent className="text-sm text-muted-foreground space-y-2">
+                            <p>Além de navegar páginas, o Command Palette permite:</p>
+                            <ul className="list-disc list-inside space-y-1">
+                                <li>Buscar wallets por endereço (digite os primeiros 4+ chars)</li>
+                                <li>Buscar casos por número ou título</li>
+                                <li>Executar ações rápidas: criar caso, adicionar wallet, gerar relatório</li>
+                                <li>Trocar tema (claro/escuro)</li>
+                                <li>Alternar visibilidade da sidebar</li>
+                                <li>Abrir documentação contextual</li>
+                            </ul>
+                            <p className="pt-2">Pressione <kbd className="px-2 py-0.5 text-xs font-mono bg-slate-100 border border-slate-300 rounded">?</kbd> em qualquer lugar para abrir esta central de ajuda.</p>
+                        </CardContent>
+                    </Card>
                 </TabsContent>
 
                 <TabsContent value="contact" className="space-y-4">
