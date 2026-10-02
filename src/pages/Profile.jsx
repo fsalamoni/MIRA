@@ -25,6 +25,16 @@ const ACTIVITY = [
     { type: 'exp', action: 'Enviou OF-2026-00123 para Binance Brasil', when: 'Ontem 14:10' },
     { type: 'case', action: 'Fechou caso MIRA-2026-0018', when: '2 dias atrás' },
     { type: 'rule', action: 'Criou regra "Mixer Detection BR"', when: '3 dias atrás' },
+    { type: 'case', action: 'Fechou caso MIRA-2026-0014 (cooperação FBI)', when: '4 dias atrás' },
+    { type: 'alert', action: 'Reconheceu alerta MIRA-ALT-2026-0298', when: '5 dias atrás' },
+    { type: 'wallet', action: 'Adicionou wallet 0x05FF…a8b2 (Lazarus) ao monitoramento', when: '6 dias atrás' },
+    { type: 'rule', action: 'Editou regra "Cross-chain Bridge"', when: '1 semana atrás' },
+    { type: 'case', action: 'Abriu caso MIRA-2026-0011 (pirâmide)', when: '1 semana atrás' },
+    { type: 'report', action: 'Gerou laudo pericial Caso MIRA-2026-0008', when: '1 semana atrás' },
+    { type: 'cluster', action: 'Identificou cluster Binance (12 wallets)', when: '2 semanas atrás' },
+    { type: 'case', action: 'Compartilhou caso com Interpol Lyon', when: '2 semanas atrás' },
+    { type: 'alert', action: 'Reconheceu 8 alertas em massa', when: '2 semanas atrás' },
+    { type: 'login', action: 'Login com chave de segurança (YubiKey)', when: '3 semanas atrás' },
 ];
 
 const CASES_RESPONSIBLE = [
@@ -33,6 +43,11 @@ const CASES_RESPONSIBLE = [
     { number: 'MIRA-2026-0023', title: 'Ransomware LockBit — vítima brasileira', status: 'Aguardando info', priority: 'urgent' },
     { number: 'MIRA-2026-0018', title: 'Pirâmide TokenBR — fraude nacional', status: 'Concluído', priority: 'high' },
     { number: 'MIRA-2026-0015', title: 'Hack wallet pessoal — investigação preliminar', status: 'Aberto', priority: 'normal' },
+    { number: 'MIRA-2026-0012', title: 'Garantex OFAC — triangulação BRL', status: 'Em rastreamento', priority: 'urgent' },
+    { number: 'MIRA-2026-0010', title: 'Lazarus Group — alvo empresa BR', status: 'Em análise', priority: 'urgent' },
+    { number: 'MIRA-2026-0007', title: 'Cooperação Interpol — caso Lyon', status: 'Aguardando info', priority: 'high' },
+    { number: 'MIRA-2026-0003', title: 'Esquema Ponzi TokenBR', status: 'Concluído', priority: 'high' },
+    { number: 'MIRA-2026-0001', title: 'Hack cold wallet — RS', status: 'Em relatório', priority: 'normal' },
 ];
 
 const PERMISSIONS = [
