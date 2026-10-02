@@ -75,12 +75,35 @@ export default function Transacoes() {
             total: transactions.length,
             flagged: transactions.filter((t) => t.flagged).length,
             confirmed: transactions.filter((t) => t.status === 'confirmed').length,
+            pending: transactions.filter((t) => t.status === 'pending').length,
+            high_risk: transactions.filter((t) => t.risk_score >= 60).length,
+            by_chain: transactions.reduce((acc, t) => {
+                acc[t.chain] = (acc[t.chain] || 0) + 1;
+                return acc;
+            }, {}),
+            unique_wallets: new Set(transactions.flatMap((t) => [t.from_address, t.to_address])).size,
         };
     }, [transactions]);
 
     const handleCopy = (text) => {
         navigator.clipboard.writeText(text);
         toast.success('Copiado para área de transferência');
+    };
+
+    const handleBulkExport = () => {
+        const data = pageData;
+        const csv = [
+            ['hash', 'chain', 'from_address', 'to_address', 'block_height', 'timestamp', 'risk_score', 'status'].join(','),
+            ...data.map((t) => [t.hash, t.chain, t.from_address, t.to_address, t.block_height, t.timestamp, t.risk_score, t.status].join(',')),
+        ].join('\n');
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `mira-transactions-page-${page}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+        toast.success(`${data.length} transação(ões) exportadas`);
     };
 
     if (loading) {
@@ -104,20 +127,24 @@ export default function Transacoes() {
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <Card className="border-[#E7E5E2]"><CardContent className="p-4">
                     <div className="text-xs text-[#6B6B66] uppercase tracking-wide">Total indexadas</div>
                     <div className="text-2xl font-bold text-[#0B1F3A]">{stats.total.toLocaleString('pt-BR')}</div>
                 </CardContent></Card>
-                <Card className="border-[#E7E5E2]"><CardContent className="p-4">
-                    <div className="text-xs text-[#6B6B66] uppercase tracking-wide">Sinalizadas</div>
+                <Card className="border-red-200 bg-red-50"><CardContent className="p-4">
+                    <div className="text-xs text-red-700 uppercase tracking-wide">Sinalizadas</div>
                     <div className="text-2xl font-bold text-red-600">{stats.flagged.toLocaleString('pt-BR')}</div>
+                    <div className="text-xs text-red-600 mt-1">{((stats.flagged / stats.total) * 100).toFixed(1)}% do total</div>
                 </CardContent></Card>
-                <Card className="border-[#E7E5E2]"><CardContent className="p-4">
-                    <div className="text-xs text-[#6B6B66] uppercase tracking-wide">Confirmadas</div>
-                    <div className="text-2xl font-bold text-emerald-600">
-                        {((stats.confirmed / stats.total) * 100).toFixed(1)}%
-                    </div>
+                <Card className="border-orange-200 bg-orange-50"><CardContent className="p-4">
+                    <div className="text-xs text-orange-700 uppercase tracking-wide">Alto risco</div>
+                    <div className="text-2xl font-bold text-orange-600">{stats.high_risk.toLocaleString('pt-BR')}</div>
+                    <div className="text-xs text-orange-600 mt-1">score ≥ 60</div>
+                </CardContent></Card>
+                <Card className="border-emerald-200 bg-emerald-50"><CardContent className="p-4">
+                    <div className="text-xs text-emerald-700 uppercase tracking-wide">Wallets únicas</div>
+                    <div className="text-2xl font-bold text-emerald-600">{stats.unique_wallets.toLocaleString('pt-BR')}</div>
                 </CardContent></Card>
             </div>
 
@@ -152,6 +179,15 @@ export default function Transacoes() {
                     </div>
                 </CardContent>
             </Card>
+
+            <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="text-sm text-[#6B6B66]">
+                    Mostrando <span className="font-semibold text-[#0B1F3A]">{pageData.length}</span> de <span className="font-semibold text-[#0B1F3A]">{filtered.length}</span> transações
+                </div>
+                <Button variant="outline" size="sm" onClick={handleBulkExport}>
+                    Exportar página atual (CSV)
+                </Button>
+            </div>
 
             <Card className="border-[#E7E5E2] bg-white overflow-hidden">
                 <div className="overflow-x-auto">

@@ -126,6 +126,23 @@ export default function InvestigacoesKanban() {
                 </div>
             </div>
 
+            <div className="grid grid-cols-2 md:grid-cols-6 gap-3 mb-4">
+                {columns.map((col) => {
+                    const items = casesByStatus[col.key] || [];
+                    const color = CASE_STATUS_COLORS[col.key];
+                    return (
+                        <Card key={col.key} className="border-[#E7E5E2]">
+                            <CardContent className="p-3">
+                                <div className="text-xs text-[#6B6B66] uppercase tracking-wide mb-1">
+                                    {col.icon} {col.label}
+                                </div>
+                                <div className={`text-2xl font-bold ${color.text}`}>{items.length}</div>
+                            </CardContent>
+                        </Card>
+                    );
+                })}
+            </div>
+
             <div className="flex gap-4 min-w-max pb-4">
                 {columns.map((col) => {
                     const color = CASE_STATUS_COLORS[col.key];
@@ -171,6 +188,9 @@ export default function InvestigacoesKanban() {
                                                 <div className="flex flex-wrap gap-1 text-[10px] text-[#6B6B66]">
                                                     <span className="flex items-center gap-0.5"><Tag className="w-2.5 h-2.5" />{c.type}</span>
                                                     <span className="flex items-center gap-0.5"><MapPin className="w-2.5 h-2.5" />{c.jurisdiction}</span>
+                                                    {c.evidence_count > 0 && <span className="flex items-center gap-0.5">📎 {c.evidence_count}</span>}
+                                                    {c.tx_ids && c.tx_ids.length > 0 && <span className="text-emerald-600">⚡ {c.tx_ids.length}</span>}
+                                                    {c.wallet_ids && c.wallet_ids.length > 0 && <span className="text-blue-600">💼 {c.wallet_ids.length}</span>}
                                                 </div>
                                             </CardContent>
                                         </Card>

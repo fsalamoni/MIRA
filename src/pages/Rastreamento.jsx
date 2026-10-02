@@ -224,6 +224,26 @@ export default function Rastreamento() {
                             <Download className="w-4 h-4 mr-2" /> Exportar PNG
                         </Button>
                     </div>
+                    <div className="mt-3 pt-3 border-t border-[#E7E5E2]">
+                        <div className="text-xs text-[#6B6B66] mb-2">Exemplos para teste (clique para rastrear):</div>
+                        <div className="flex flex-wrap gap-2">
+                            {[
+                                { addr: '0x28C6c06298d514Db089934071355E5743bf21d60', label: 'Binance 14' },
+                                { addr: '0xd9e1cE17d264a9c3F8d8b8c8d8e8f8a8b8c8d8e8', label: 'Tornado Cash' },
+                                { addr: '0x05FFB2D3BC58B6fEcb6b6bA1fF8F0f5E7bA3a8b2', label: 'Lazarus Group' },
+                                { addr: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045', label: 'Vitalik' },
+                            ].map((ex) => (
+                                <button
+                                    key={ex.addr}
+                                    onClick={() => setAddress(ex.addr)}
+                                    className="text-xs px-2 py-1 border border-[#D8D5CF] rounded hover:bg-[#FAFAF9] hover:border-[#0B1F3A]"
+                                >
+                                    <span className="font-medium">{ex.label}</span>
+                                    <span className="font-mono text-[10px] text-[#6B6B66] ml-1">{ex.addr.slice(0, 10)}...</span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
                 </CardContent>
             </Card>
 

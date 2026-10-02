@@ -10,6 +10,14 @@ import {
     Clock,
     ChevronRight,
     LayoutGrid,
+    Download,
+    CheckSquare,
+    Square,
+    X,
+    AlertTriangle,
+    TrendingUp,
+    Activity,
+    Users,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -34,6 +42,9 @@ export default function Investigacoes() {
     const [typeFilter, setTypeFilter] = useState('all');
     const [priorityFilter, setPriorityFilter] = useState('all');
     const [createOpen, setCreateOpen] = useState(false);
+    const [selectedIds, setSelectedIds] = useState([]);
+    const [sortBy, setSortBy] = useState('recent');
+    const [assigneeFilter, setAssigneeFilter] = useState('all');
 
     // new case form
     const [form, setForm] = useState({
@@ -42,6 +53,9 @@ export default function Investigacoes() {
         type: CASE_TYPES.OUTROS,
         priority: 'normal',
         jurisdiction: '',
+        assignee: '',
+        tags: '',
+        visibility: 'internal',
     });
 
     useEffect(() => {
@@ -61,14 +75,67 @@ export default function Investigacoes() {
     };
 
     const filtered = useMemo(() => {
-        return cases.filter((c) => {
+        let result = cases.filter((c) => {
             if (statusFilter !== 'all' && c.status !== statusFilter) return false;
             if (typeFilter !== 'all' && c.type !== typeFilter) return false;
             if (priorityFilter !== 'all' && c.priority !== priorityFilter) return false;
+            if (assigneeFilter !== 'all' && c.assignee !== assigneeFilter) return false;
             if (search && !`${c.title} ${c.number}`.toLowerCase().includes(search.toLowerCase())) return false;
             return true;
         });
-    }, [cases, search, statusFilter, typeFilter, priorityFilter]);
+        if (sortBy === 'recent') {
+            result = [...result].sort((a, b) => new Date(b.opened_at) - new Date(a.opened_at));
+        } else if (sortBy === 'priority') {
+            const order = { urgent: 0, high: 1, normal: 2, low: 3 };
+            result = [...result].sort((a, b) => order[a.priority] - order[b.priority]);
+        } else if (sortBy === 'evidence') {
+            result = [...result].sort((a, b) => (b.evidence_count || 0) - (a.evidence_count || 0));
+        } else if (sortBy === 'oldest') {
+            result = [...result].sort((a, b) => new Date(a.opened_at) - new Date(b.opened_at));
+        }
+        return result;
+    }, [cases, search, statusFilter, typeFilter, priorityFilter, assigneeFilter, sortBy]);
+
+    const assignees = useMemo(() => {
+        return Array.from(new Set(cases.map((c) => c.assignee).filter(Boolean)));
+    }, [cases]);
+
+    const toggleSelect = (id) => {
+        setSelectedIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+    };
+
+    const toggleSelectAll = () => {
+        if (selectedIds.length === filtered.length) {
+            setSelectedIds([]);
+        } else {
+            setSelectedIds(filtered.map((c) => c.id));
+        }
+    };
+
+    const handleBulkStatus = async (newStatus) => {
+        try {
+            for (const id of selectedIds) {
+                await miraService.updateCase(id, { status: newStatus });
+            }
+            toast.success(`${selectedIds.length} caso(s) atualizados para "${newStatus}"`);
+            setSelectedIds([]);
+            loadCases();
+        } catch (e) {
+            toast.error('Erro ao atualizar casos');
+        }
+    };
+
+    const handleBulkExport = () => {
+        const data = selectedIds.map((id) => cases.find((c) => c.id === id)).filter(Boolean);
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `mira-cases-${new Date().toISOString().split('T')[0]}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        toast.success(`${data.length} caso(s) exportados`);
+    };
 
     const handleCreate = async () => {
         if (!form.title) {
@@ -76,10 +143,14 @@ export default function Investigacoes() {
             return;
         }
         try {
-            await miraService.createCase(form);
+            const payload = {
+                ...form,
+                tags: form.tags.split(',').map((t) => t.trim()).filter(Boolean),
+            };
+            await miraService.createCase(payload);
             toast.success('Investigação criada com sucesso');
             setCreateOpen(false);
-            setForm({ title: '', description: '', type: CASE_TYPES.OUTROS, priority: 'normal', jurisdiction: '' });
+            setForm({ title: '', description: '', type: CASE_TYPES.OUTROS, priority: 'normal', jurisdiction: '', assignee: '', tags: '', visibility: 'internal' });
             loadCases();
         } catch (e) {
             toast.error('Erro ao criar investigação');
@@ -157,23 +228,119 @@ export default function Investigacoes() {
                                 <SelectItem value="low">Baixa</SelectItem>
                             </SelectContent>
                         </Select>
+                        {assignees.length > 0 && (
+                            <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
+                                <SelectTrigger className="w-[180px] h-10"><SelectValue placeholder="Responsável" /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Todos responsáveis</SelectItem>
+                                    {assignees.map((a) => (
+                                        <SelectItem key={a} value={a}>{a}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        )}
+                        <Select value={sortBy} onValueChange={setSortBy}>
+                            <SelectTrigger className="w-[160px] h-10"><SelectValue placeholder="Ordenar" /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="recent">Mais recentes</SelectItem>
+                                <SelectItem value="oldest">Mais antigos</SelectItem>
+                                <SelectItem value="priority">Prioridade</SelectItem>
+                                <SelectItem value="evidence">Mais evidências</SelectItem>
+                            </SelectContent>
+                        </Select>
                     </div>
                 </CardContent>
             </Card>
 
+            {/* Bulk actions bar */}
+            {selectedIds.length > 0 && (
+                <Card className="border-[#0B1F3A] bg-[#0B1F3A] text-white">
+                    <CardContent className="p-3 flex items-center justify-between gap-3 flex-wrap">
+                        <div className="flex items-center gap-3">
+                            <span className="font-semibold">{selectedIds.length} caso(s) selecionado(s)</span>
+                            <Button size="sm" variant="ghost" onClick={() => setSelectedIds([])} className="text-white hover:bg-white/10">
+                                <X className="w-4 h-4" />
+                            </Button>
+                        </div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <Button size="sm" variant="secondary" onClick={() => handleBulkStatus('em_investigacao')}>
+                                Marcar em investigação
+                            </Button>
+                            <Button size="sm" variant="secondary" onClick={() => handleBulkStatus('em_analise')}>
+                                Marcar em análise
+                            </Button>
+                            <Button size="sm" variant="secondary" onClick={() => handleBulkStatus('encerrado')}>
+                                Encerrar
+                            </Button>
+                            <Button size="sm" variant="secondary" onClick={() => handleBulkStatus('arquivado')}>
+                                Arquivar
+                            </Button>
+                            <Button size="sm" onClick={handleBulkExport} className="bg-emerald-600 hover:bg-emerald-700">
+                                <Download className="w-3 h-3 mr-1" /> Exportar JSON
+                            </Button>
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
+
+            {/* Select all */}
+            {filtered.length > 0 && (
+                <div className="flex items-center gap-2 text-sm text-[#6B6B66]">
+                    <button onClick={toggleSelectAll} className="flex items-center gap-1 hover:text-[#0B1F3A]">
+                        {selectedIds.length === filtered.length ? (
+                            <CheckSquare className="w-4 h-4" />
+                        ) : (
+                            <Square className="w-4 h-4" />
+                        )}
+                        {selectedIds.length === filtered.length ? 'Desselecionar todos' : 'Selecionar todos'}
+                    </button>
+                    <span>·</span>
+                    <span>{filtered.length} caso(s) visíveis</span>
+                </div>
+            )}
+
             {/* Stats */}
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                {Object.entries(CASE_STATUSES).map(([key, label]) => {
-                    const count = cases.filter((c) => c.status === label).length;
-                    return (
-                        <Card key={key} className="border-[#E7E5E2] bg-white">
-                            <CardContent className="p-4">
-                                <div className="text-xs text-[#6B6B66] uppercase tracking-wide mb-1">{label}</div>
-                                <div className="text-2xl font-bold text-[#0B1F3A]">{count}</div>
-                            </CardContent>
-                        </Card>
-                    );
-                })}
+                <Card className="border-[#E7E5E2] bg-white">
+                    <CardContent className="p-4">
+                        <div className="text-xs text-[#6B6B66] uppercase tracking-wide mb-1 flex items-center gap-1">
+                            <FileSearch className="w-3 h-3" /> Total
+                        </div>
+                        <div className="text-2xl font-bold text-[#0B1F3A]">{cases.length}</div>
+                    </CardContent>
+                </Card>
+                <Card className="border-amber-200 bg-amber-50">
+                    <CardContent className="p-4">
+                        <div className="text-xs text-amber-700 uppercase tracking-wide mb-1 flex items-center gap-1">
+                            <Activity className="w-3 h-3" /> Em andamento
+                        </div>
+                        <div className="text-2xl font-bold text-amber-600">{cases.filter((c) => c.status === 'em_investigacao' || c.status === 'em_analise').length}</div>
+                    </CardContent>
+                </Card>
+                <Card className="border-red-200 bg-red-50">
+                    <CardContent className="p-4">
+                        <div className="text-xs text-red-700 uppercase tracking-wide mb-1 flex items-center gap-1">
+                            <AlertTriangle className="w-3 h-3" /> Urgentes
+                        </div>
+                        <div className="text-2xl font-bold text-red-600">{cases.filter((c) => c.priority === 'urgent').length}</div>
+                    </CardContent>
+                </Card>
+                <Card className="border-blue-200 bg-blue-50">
+                    <CardContent className="p-4">
+                        <div className="text-xs text-blue-700 uppercase tracking-wide mb-1 flex items-center gap-1">
+                            <TrendingUp className="w-3 h-3" /> Encerrados
+                        </div>
+                        <div className="text-2xl font-bold text-blue-600">{cases.filter((c) => c.status === 'encerrado' || c.status === 'arquivado').length}</div>
+                    </CardContent>
+                </Card>
+                <Card className="border-emerald-200 bg-emerald-50">
+                    <CardContent className="p-4">
+                        <div className="text-xs text-emerald-700 uppercase tracking-wide mb-1 flex items-center gap-1">
+                            <Users className="w-3 h-3" /> Designados
+                        </div>
+                        <div className="text-2xl font-bold text-emerald-600">{assignees.length}</div>
+                    </CardContent>
+                </Card>
             </div>
 
             {/* Cases List */}
@@ -189,37 +356,46 @@ export default function Investigacoes() {
                 )}
                 {filtered.map((c) => {
                     const color = CASE_STATUS_COLORS[c.status] || CASE_STATUS_COLORS[CASE_STATUSES.ABERTO];
+                    const isSelected = selectedIds.includes(c.id);
                     return (
-                        <Link key={c.id} to={`/InvestigacaoDetalhe/${c.id}`} className="block">
-                            <Card className={`border-[#E7E5E2] bg-white border-l-4 ${color.accent} hover:shadow-md transition cursor-pointer`}>
-                                <CardContent className="p-5">
-                                    <div className="flex items-start justify-between gap-4">
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-2 mb-2">
-                                                <span className="font-mono text-xs text-[#6B6B66]">{c.number}</span>
-                                                <Badge className={`${color.bg} ${color.text}`}>{c.status}</Badge>
-                                                {c.priority === 'urgent' && <Badge className="bg-red-100 text-red-700">⚠ Urgente</Badge>}
-                                                {c.priority === 'high' && <Badge className="bg-orange-100 text-orange-700">Alta</Badge>}
-                                                {c.visibility === 'classified' && <Badge className="bg-slate-100 text-slate-700">🔒 Restrito</Badge>}
-                                            </div>
-                                            <h3 className="font-bold text-[#0B1F3A] mb-1.5">{c.title}</h3>
-                                            <p className="text-sm text-[#6B6B66] mb-3 line-clamp-2">{c.description}</p>
-                                            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-[#6B6B66]">
-                                                <span className="flex items-center gap-1"><Tag className="w-3 h-3" /> {c.type}</span>
-                                                <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {c.jurisdiction}</span>
-                                                <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {new Date(c.opened_at).toLocaleDateString('pt-BR')}</span>
-                                                <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {c.evidence_count} evidências</span>
-                                                {c.tx_ids.length > 0 && <span className="flex items-center gap-1 text-emerald-600">{c.tx_ids.length} transações vinculadas</span>}
-                                                {c.wallet_ids.length > 0 && <span className="flex items-center gap-1 text-blue-600">{c.wallet_ids.length} wallets vinculadas</span>}
-                                            </div>
+                        <Card key={c.id} className={`border-[#E7E5E2] bg-white border-l-4 ${color.accent} hover:shadow-md transition ${isSelected ? 'ring-2 ring-[#0B1F3A]' : ''}`}>
+                            <CardContent className="p-5">
+                                <div className="flex items-start justify-between gap-4">
+                                    <button
+                                        onClick={(e) => { e.preventDefault(); toggleSelect(c.id); }}
+                                        className="flex-shrink-0 mt-1"
+                                    >
+                                        {isSelected ? <CheckSquare className="w-5 h-5 text-[#0B1F3A]" /> : <Square className="w-5 h-5 text-[#6B6B66]" />}
+                                    </button>
+                                    <Link to={`/InvestigacaoDetalhe/${c.id}`} className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 mb-2 flex-wrap">
+                                            <span className="font-mono text-xs text-[#6B6B66]">{c.number}</span>
+                                            <Badge className={`${color.bg} ${color.text}`}>{c.status}</Badge>
+                                            {c.priority === 'urgent' && <Badge className="bg-red-100 text-red-700">⚠ Urgente</Badge>}
+                                            {c.priority === 'high' && <Badge className="bg-orange-100 text-orange-700">Alta</Badge>}
+                                            {c.visibility === 'classified' && <Badge className="bg-slate-100 text-slate-700">🔒 Restrito</Badge>}
+                                            {c.assignee && <Badge variant="outline" className="text-xs"><Users className="w-3 h-3 mr-1" />{c.assignee}</Badge>}
                                         </div>
-                                        <Button variant="ghost" size="sm">
+                                        <h3 className="font-bold text-[#0B1F3A] mb-1.5">{c.title}</h3>
+                                        <p className="text-sm text-[#6B6B66] mb-3 line-clamp-2">{c.description}</p>
+                                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-[#6B6B66]">
+                                            <span className="flex items-center gap-1"><Tag className="w-3 h-3" /> {c.type}</span>
+                                            <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {c.jurisdiction}</span>
+                                            <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {new Date(c.opened_at).toLocaleDateString('pt-BR')}</span>
+                                            <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {c.evidence_count} evidências</span>
+                                            {c.tx_ids && c.tx_ids.length > 0 && <span className="flex items-center gap-1 text-emerald-600">{c.tx_ids.length} transações</span>}
+                                            {c.wallet_ids && c.wallet_ids.length > 0 && <span className="flex items-center gap-1 text-blue-600">{c.wallet_ids.length} wallets</span>}
+                                            {c.tags && c.tags.length > 0 && <span className="flex items-center gap-1 text-purple-600">#{c.tags.join(' #')}</span>}
+                                        </div>
+                                    </Link>
+                                    <Button variant="ghost" size="sm" asChild>
+                                        <Link to={`/InvestigacaoDetalhe/${c.id}`}>
                                             Detalhes <ChevronRight className="w-4 h-4 ml-1" />
-                                        </Button>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </Link>
+                                        </Link>
+                                    </Button>
+                                </div>
+                            </CardContent>
+                        </Card>
                     );
                 })}
             </div>
@@ -273,13 +449,44 @@ export default function Investigacoes() {
                                 </Select>
                             </div>
                         </div>
-                        <div className="space-y-1.5">
-                            <Label>Jurisdição</Label>
-                            <Input
-                                value={form.jurisdiction}
-                                onChange={(e) => setForm({ ...form, jurisdiction: e.target.value })}
-                                placeholder="Ex: São Paulo/SP"
-                            />
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1.5">
+                                <Label>Jurisdição</Label>
+                                <Input
+                                    value={form.jurisdiction}
+                                    onChange={(e) => setForm({ ...form, jurisdiction: e.target.value })}
+                                    placeholder="Ex: São Paulo/SP"
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label>Responsável</Label>
+                                <Input
+                                    value={form.assignee}
+                                    onChange={(e) => setForm({ ...form, assignee: e.target.value })}
+                                    placeholder="Nome do promotor responsável"
+                                />
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1.5">
+                                <Label>Visibilidade</Label>
+                                <Select value={form.visibility} onValueChange={(v) => setForm({ ...form, visibility: v })}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="internal">Interno</SelectItem>
+                                        <SelectItem value="restricted">Restrito</SelectItem>
+                                        <SelectItem value="classified">Sigiloso</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label>Tags (separadas por vírgula)</Label>
+                                <Input
+                                    value={form.tags}
+                                    onChange={(e) => setForm({ ...form, tags: e.target.value })}
+                                    placeholder="lavagem, mixer, tornado"
+                                />
+                            </div>
                         </div>
                     </div>
                     <DialogFooter>
