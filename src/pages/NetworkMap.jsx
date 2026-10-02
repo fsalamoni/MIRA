@@ -204,7 +204,7 @@ export default function NetworkMap() {
                 </AlertDescription>
             </Alert>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                 <Card><CardContent className="pt-4">
                     <div className="text-xs text-muted-foreground uppercase">Clusters visíveis</div>
                     <div className="text-2xl font-bold mt-1">{simulation.nodes.length}</div>
@@ -220,8 +220,14 @@ export default function NetworkMap() {
                     </div>
                 </CardContent></Card>
                 <Card><CardContent className="pt-4">
-                    <div className="text-xs text-muted-foreground uppercase">Total wallets</div>
+                    <div className="text-xs text-muted-foreground uppercase">Reais</div>
                     <div className="text-2xl font-bold mt-1 text-emerald-600">
+                        {simulation.nodes.filter((n) => n.real).length}
+                    </div>
+                </CardContent></Card>
+                <Card><CardContent className="pt-4">
+                    <div className="text-xs text-muted-foreground uppercase">Total wallets</div>
+                    <div className="text-2xl font-bold mt-1 text-purple-600">
                         {simulation.nodes.reduce((s, n) => s + (n.size || 0), 0).toLocaleString('pt-BR')}
                     </div>
                 </CardContent></Card>

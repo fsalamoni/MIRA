@@ -240,7 +240,7 @@ export default function Login() {
                 <div className="hidden md:flex flex-col justify-center p-8 bg-[#0B1F3A] rounded-xl text-white">
                     <Badge className="bg-white/10 text-white border-white/20 self-start mb-6">
                         <Sparkles className="w-3 h-3 mr-1.5" />
-                        Protótipo v0.1.0
+                        Protótipo v0.8.0
                     </Badge>
                     <h2 className="text-3xl font-bold mb-4 leading-tight">
                         Fiscalização de criptoativos,<br />sem API paga.
@@ -252,8 +252,12 @@ export default function Login() {
                     <div className="space-y-3">
                         {[
                             { icon: Building2, text: 'Multi-tenant: cada Promotoria em seu workspace isolado' },
-                            { icon: Coins, text: 'BTC, ETH, USDT, USDC, Tron, BNB Chain' },
+                            { icon: Coins, text: '14 chains: BTC, ETH, USDT, USDC, Tron, BNB, Solana, etc.' },
                             { icon: Radar, text: 'Grafo de movimentação com até 4 níveis de profundidade' },
+                            { icon: Shield, text: 'Cadeia de custódia com hash SHA-256 (Web Crypto API)' },
+                            { icon: ScanSearch, text: '5.000+ wallets catalogadas, 80+ sancionadas OFAC' },
+                            { icon: FileText, text: '15 casos públicos documentados (Bitfinex, Mt.Gox, Ronin...)' },
+                            { icon: Activity, text: '500+ alertas, 6 heurísticas, 14 clusters reais' },
                         ].map((f) => (
                             <div key={f.text} className="flex items-start gap-3">
                                 <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -262,6 +266,13 @@ export default function Login() {
                                 <span className="text-sm text-white/90">{f.text}</span>
                             </div>
                         ))}
+                    </div>
+                    <div className="mt-8 pt-6 border-t border-white/10 text-xs text-white/50">
+                        <div className="flex items-center gap-2">
+                            <Shield className="w-3 h-3" />
+                            <span>LGPD · Cadeia de Custódia art. 158-B CPP</span>
+                        </div>
+                        <div className="mt-1">github.com/fsalamoni/MIRA</div>
                     </div>
                 </div>
             </div>

@@ -140,7 +140,7 @@ export default function ChainAnalytics() {
                     <TabsTrigger value="clusters"><Layers className="w-4 h-4 mr-1" />Clusters ({clusters.length})</TabsTrigger>
                     <TabsTrigger value="labels"><Tag className="w-4 h-4 mr-1" />Labels ({labels.length})</TabsTrigger>
                     <TabsTrigger value="heuristics"><BarChart3 className="w-4 h-4 mr-1" />Heurísticas</TabsTrigger>
-                    <TabsTrigger value="chains"><Box className="w-4 h-4 mr-1" />Chains</TabsTrigger>
+                    <TabsTrigger value="chains"><Box className="w-4 h-4 mr-1" />Chains ({CHAIN_LIST.length})</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="clusters" className="space-y-3">
@@ -210,7 +210,7 @@ export default function ChainAnalytics() {
                         </div>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                        {labels.slice(0, 40).map((l) => (
+                        {labels.map((l) => (
                             <Card
                                 key={l.id}
                                 className="cursor-pointer hover:bg-slate-50"
@@ -224,10 +224,11 @@ export default function ChainAnalytics() {
                                                 {l.verified && <Badge variant="outline" className="text-xs">✓ verificado</Badge>}
                                             </div>
                                             <div className="text-xs font-mono text-muted-foreground truncate">{l.address}</div>
-                                            <div className="flex items-center gap-2 mt-2">
+                                            <div className="flex items-center gap-2 mt-2 flex-wrap">
                                                 <Badge variant="outline" className="text-xs">{l.chain}</Badge>
                                                 <Badge variant="outline" className="text-xs">{l.kind}</Badge>
                                                 <span className="text-xs text-muted-foreground">{l.source}</span>
+                                                {l.confidence && <span className="text-xs text-muted-foreground">conf: {l.confidence}</span>}
                                             </div>
                                         </div>
                                         <ChevronRight className="w-4 h-4 text-muted-foreground" />
