@@ -172,16 +172,26 @@ export default function Admin() {
                             <CardContent>
                                 <div className="space-y-2">
                                     {[
-                                        { id: '1', name: 'Ministério Público do RS', users: 23, plan: 'Institucional', status: 'Ativo' },
-                                        { id: '2', name: 'Polícia Federal - SR/RS', users: 12, plan: 'Institucional', status: 'Ativo' },
-                                        { id: '3', name: 'Receita Federal - 10ª RF', users: 8, plan: 'Institucional', status: 'Ativo' },
-                                        { id: '4', name: 'COAF', users: 15, plan: 'Institucional', status: 'Ativo' },
-                                        { id: '5', name: 'BACEN', users: 6, plan: 'Institucional', status: 'Suspenso' },
+                                        { id: '1', name: 'Ministério Público do RS', users: 23, plan: 'Institucional', status: 'Ativo', cases: 47 },
+                                        { id: '2', name: 'Polícia Federal - SR/RS', users: 12, plan: 'Institucional', status: 'Ativo', cases: 28 },
+                                        { id: '3', name: 'Receita Federal - 10ª RF', users: 8, plan: 'Institucional', status: 'Ativo', cases: 15 },
+                                        { id: '4', name: 'COAF', users: 15, plan: 'Institucional', status: 'Ativo', cases: 22 },
+                                        { id: '5', name: 'BACEN', users: 6, plan: 'Institucional', status: 'Ativo', cases: 11 },
+                                        { id: '6', name: 'Ministério Público Federal', users: 18, plan: 'Institucional', status: 'Ativo', cases: 35 },
+                                        { id: '7', name: 'Polícia Civil - DRACO RS', users: 9, plan: 'Institucional', status: 'Ativo', cases: 19 },
+                                        { id: '8', name: 'CVM', users: 7, plan: 'Institucional', status: 'Ativo', cases: 8 },
+                                        { id: '9', name: 'Tribunal de Justiça RS', users: 4, plan: 'Institucional', status: 'Ativo', cases: 3 },
+                                        { id: '10', name: 'MP - Santa Catarina', users: 14, plan: 'Institucional', status: 'Ativo', cases: 21 },
+                                        { id: '11', name: 'MP - Paraná', users: 16, plan: 'Institucional', status: 'Ativo', cases: 25 },
+                                        { id: '12', name: 'UIF Argentina', users: 5, plan: 'Internacional', status: 'Ativo', cases: 7 },
+                                        { id: '13', name: 'Interpol Lyon', users: 3, plan: 'Internacional', status: 'Ativo', cases: 4 },
+                                        { id: '14', name: 'Europol EC3', users: 6, plan: 'Internacional', status: 'Ativo', cases: 9 },
+                                        { id: '15', name: 'FBI Cyber Division', users: 4, plan: 'Internacional', status: 'Ativo', cases: 6 },
                                     ].map((o) => (
                                         <div key={o.id} className="flex items-center justify-between border border-[#E7E5E2] rounded-lg p-3">
                                             <div>
                                                 <div className="font-semibold text-[#0B1F3A]">{o.name}</div>
-                                                <div className="text-xs text-[#6B6B66]">{o.users} usuários · Plano {o.plan}</div>
+                                                <div className="text-xs text-[#6B6B66]">{o.users} usuários · {o.cases} casos · Plano {o.plan}</div>
                                             </div>
                                             <Badge className={o.status === 'Ativo' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}>
                                                 {o.status}
@@ -202,17 +212,31 @@ export default function Admin() {
                             <CardContent>
                                 <div className="space-y-2">
                                     {[
-                                        { name: 'admin@mira.platform', role: 'platform_admin', last_login: '2026-09-30 09:15' },
-                                        { name: 'perito1@mp.rs.gov.br', role: 'tenant_member', last_login: '2026-09-30 08:42' },
-                                        { name: 'analista@pf.gov.br', role: 'tenant_member', last_login: '2026-09-29 18:33' },
+                                        { name: 'admin@mira.platform', role: 'platform_admin', last_login: '2026-09-30 09:15', cases: 47, alerts_resolved: 156 },
+                                        { name: 'fernando.araldi@mp.rs.gov.br', role: 'tenant_admin', last_login: '2026-09-30 08:42', cases: 32, alerts_resolved: 89 },
+                                        { name: 'maria.costa@mp.rs.gov.br', role: 'tenant_member', last_login: '2026-09-30 07:15', cases: 28, alerts_resolved: 67 },
+                                        { name: 'joao.silva@mp.rs.gov.br', role: 'tenant_member', last_login: '2026-09-29 18:33', cases: 19, alerts_resolved: 45 },
+                                        { name: 'carlos.souza@pf.gov.br', role: 'tenant_member', last_login: '2026-09-29 17:20', cases: 24, alerts_resolved: 52 },
+                                        { name: 'ana.oliveira@coaf.gov.br', role: 'tenant_member', last_login: '2026-09-29 16:05', cases: 22, alerts_resolved: 78 },
+                                        { name: 'pedro.almeida@rfb.gov.br', role: 'tenant_member', last_login: '2026-09-29 14:50', cases: 15, alerts_resolved: 38 },
+                                        { name: 'lucas.ferreira@cvm.gov.br', role: 'tenant_member', last_login: '2026-09-29 11:30', cases: 8, alerts_resolved: 21 },
+                                        { name: 'paula.mendes@draco.rs.gov.br', role: 'tenant_member', last_login: '2026-09-29 10:15', cases: 19, alerts_resolved: 43 },
+                                        { name: 'rafael.santos@mpf.gov.br', role: 'tenant_member', last_login: '2026-09-29 09:00', cases: 35, alerts_resolved: 71 },
+                                        { name: 'camila.rocha@uif.gob.ar', role: 'tenant_member', last_login: '2026-09-28 22:15', cases: 7, alerts_resolved: 18 },
+                                        { name: 'diego.lima@interpol.int', role: 'tenant_member', last_login: '2026-09-28 19:45', cases: 4, alerts_resolved: 12 },
                                     ].map((u, i) => (
                                         <div key={i} className="flex items-center justify-between border border-[#E7E5E2] rounded-lg p-3">
-                                            <div>
-                                                <div className="font-mono text-sm text-[#0B1F3A]">{u.name}</div>
-                                                <div className="text-xs text-[#6B6B66]">Último login: {u.last_login}</div>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="font-mono text-sm text-[#0B1F3A] truncate">{u.name}</div>
+                                                <div className="text-xs text-[#6B6B66]">Último login: {u.last_login} · {u.cases} casos · {u.alerts_resolved} alertas resolvidos</div>
                                             </div>
-                                            <Badge className={u.role === 'platform_admin' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}>
-                                                {u.role === 'platform_admin' ? 'Platform Admin' : 'Membro'}
+                                            <Badge className={
+                                                u.role === 'platform_admin' ? 'bg-red-100 text-red-700' :
+                                                    u.role === 'tenant_admin' ? 'bg-amber-100 text-amber-700' :
+                                                        'bg-blue-100 text-blue-700'
+                                            }>
+                                                {u.role === 'platform_admin' ? 'Platform Admin' :
+                                                    u.role === 'tenant_admin' ? 'Org Admin' : 'Membro'}
                                             </Badge>
                                         </div>
                                     ))}
@@ -301,22 +325,34 @@ export default function Admin() {
                             </CardHeader>
                             <CardContent className="space-y-3">
                                 {[
-                                    { name: 'Frontend (Vercel/Firebase Hosting)', status: 'operational', latency: '142ms' },
-                                    { name: 'Firestore', status: 'operational', latency: '38ms' },
-                                    { name: 'Cloud Functions v2', status: 'operational', latency: '210ms' },
-                                    { name: 'Auth (Firebase)', status: 'operational', latency: '65ms' },
-                                    { name: 'Blockchair API', status: 'degraded', latency: '850ms' },
-                                    { name: 'SMTP Provider', status: 'operational', latency: '—' },
+                                    { name: 'Frontend (Firebase Hosting)', status: 'operational', latency: '142ms', region: 'us-central1' },
+                                    { name: 'Firestore', status: 'operational', latency: '38ms', region: 'multi-region' },
+                                    { name: 'Cloud Functions v2', status: 'operational', latency: '210ms', region: 'us-central1' },
+                                    { name: 'Auth (Firebase)', status: 'operational', latency: '65ms', region: 'global' },
+                                    { name: 'Cloud Storage', status: 'operational', latency: '95ms', region: 'us-central1' },
+                                    { name: 'App Check', status: 'operational', latency: '28ms', region: 'global' },
+                                    { name: 'Etherscan API (ETH)', status: 'operational', latency: '320ms', region: 'externo' },
+                                    { name: 'Blockchair API (BTC)', status: 'degraded', latency: '850ms', region: 'externo' },
+                                    { name: 'TronScan API (TRX)', status: 'operational', latency: '245ms', region: 'externo' },
+                                    { name: 'BscScan API (BNB)', status: 'operational', latency: '290ms', region: 'externo' },
+                                    { name: 'PolygonScan API (MATIC)', status: 'operational', latency: '275ms', region: 'externo' },
+                                    { name: 'OFAC SDN API', status: 'operational', latency: '180ms', region: 'externo' },
+                                    { name: 'EU Sanctions API', status: 'operational', latency: '215ms', region: 'externo' },
+                                    { name: 'SMTP Provider', status: 'operational', latency: '—', region: 'smtp.gmail.com' },
+                                    { name: 'Web Crypto API (browser)', status: 'operational', latency: '<5ms', region: 'client' },
+                                    { name: 'PWA Service Worker', status: 'operational', latency: '<5ms', region: 'client' },
                                 ].map((s, i) => (
                                     <div key={i} className="flex items-center justify-between border border-[#E7E5E2] rounded-lg p-3">
-                                        <div className="flex items-center gap-3">
-                                            <div className={`w-3 h-3 rounded-full ${
+                                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                                            <div className={`w-3 h-3 rounded-full flex-shrink-0 ${
                                                 s.status === 'operational' ? 'bg-emerald-500' :
                                                     s.status === 'degraded' ? 'bg-amber-500' : 'bg-red-500'
                                             }`}></div>
-                                            <div>
-                                                <div className="font-medium text-[#0B1F3A] text-sm">{s.name}</div>
-                                                <div className="text-xs text-[#6B6B66] capitalize">{s.status} · {s.latency}</div>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="font-medium text-[#0B1F3A] text-sm truncate">{s.name}</div>
+                                                <div className="text-xs text-[#6B6B66]">
+                                                    {s.status === 'operational' ? '✓ Operacional' : s.status === 'degraded' ? '⚠ Degradado' : '✗ Fora'} · {s.latency} · {s.region}
+                                                </div>
                                             </div>
                                         </div>
                                         <Badge className={
@@ -329,6 +365,25 @@ export default function Admin() {
                                         </Badge>
                                     </div>
                                 ))}
+
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-4 border-t mt-4">
+                                    <div className="text-center p-3 border rounded-lg bg-slate-50">
+                                        <div className="text-2xl font-bold text-emerald-600">99.7%</div>
+                                        <div className="text-xs text-muted-foreground">Uptime 30d</div>
+                                    </div>
+                                    <div className="text-center p-3 border rounded-lg bg-slate-50">
+                                        <div className="text-2xl font-bold text-blue-600">142ms</div>
+                                        <div className="text-xs text-muted-foreground">P95 latency</div>
+                                    </div>
+                                    <div className="text-center p-3 border rounded-lg bg-slate-50">
+                                        <div className="text-2xl font-bold text-purple-600">23k</div>
+                                        <div className="text-xs text-muted-foreground">Req/min</div>
+                                    </div>
+                                    <div className="text-center p-3 border rounded-lg bg-slate-50">
+                                        <div className="text-2xl font-bold text-amber-600">0.02%</div>
+                                        <div className="text-xs text-muted-foreground">Error rate</div>
+                                    </div>
+                                </div>
                             </CardContent>
                         </Card>
                     )}

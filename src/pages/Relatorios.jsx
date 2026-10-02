@@ -116,6 +116,86 @@ const MOCK_HISTORY = [
         created_by: 'admin@mira.platform',
         pages: 14,
     },
+    {
+        id: 'rep-005',
+        title: 'Análise de Cluster Lazarus Group — 47 wallets',
+        template: 'clustering',
+        case_number: 'MIRA-2026-0019',
+        created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+        status: 'finalized',
+        created_by: 'analyst@mira.platform',
+        pages: 12,
+    },
+    {
+        id: 'rep-006',
+        title: 'Laudo Pericial — Caso MIRA-2026-0015 Hack Wallet',
+        template: 'court',
+        case_number: 'MIRA-2026-0015',
+        created_at: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+        status: 'finalized',
+        created_by: 'perito@mira.platform',
+        pages: 28,
+    },
+    {
+        id: 'rep-007',
+        title: 'Resumo Executivo — Operações Q3 2026',
+        template: 'summary',
+        case_number: null,
+        created_at: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
+        status: 'finalized',
+        created_by: 'coordenador@mira.platform',
+        pages: 1,
+    },
+    {
+        id: 'rep-008',
+        title: 'Rastreamento — Garantex Sancionado OFAC',
+        template: 'tracking',
+        case_number: 'MIRA-2026-0020',
+        created_at: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000),
+        status: 'finalized',
+        created_by: 'analyst@mira.platform',
+        pages: 10,
+    },
+    {
+        id: 'rep-009',
+        title: 'Perfil Wallet — Vitalik Buterin',
+        template: 'wallet-profile',
+        case_number: null,
+        created_at: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000),
+        status: 'archived',
+        created_by: 'analyst@mira.platform',
+        pages: 3,
+    },
+    {
+        id: 'rep-010',
+        title: 'Relatório Quinzenal — 15-30/set 2026',
+        template: 'periodic',
+        case_number: null,
+        created_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+        status: 'finalized',
+        created_by: 'coordenador@mira.platform',
+        pages: 18,
+    },
+    {
+        id: 'rep-011',
+        title: 'Análise de Cluster — Mercado Bitcoin + Ripio',
+        template: 'clustering',
+        case_number: 'MIRA-2026-0017',
+        created_at: new Date(Date.now() - 35 * 24 * 60 * 60 * 1000),
+        status: 'finalized',
+        created_by: 'analyst@mira.platform',
+        pages: 8,
+    },
+    {
+        id: 'rep-012',
+        title: 'Laudo Pericial — Ronin Bridge Hack 2022 (cooperação FBI)',
+        template: 'court',
+        case_number: 'MIRA-2026-0014',
+        created_at: new Date(Date.now() - 40 * 24 * 60 * 60 * 1000),
+        status: 'finalized',
+        created_by: 'perito@mira.platform',
+        pages: 35,
+    },
 ];
 
 function generateMockPDF(template, title, caseNumber) {
@@ -224,6 +304,31 @@ export default function Relatorios() {
                     <h1 className="text-3xl font-bold text-[#0B1F3A] tracking-tight">Relatórios</h1>
                     <p className="text-[#6B6B66] mt-1">Templates prontos para geração de laudos periciais.</p>
                 </div>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <Card><CardContent className="pt-4">
+                    <div className="text-xs text-muted-foreground uppercase flex items-center gap-1">
+                        <FileText className="w-3 h-3" /> Templates
+                    </div>
+                    <div className="text-2xl font-bold mt-1">{REPORT_TEMPLATES.length}</div>
+                </CardContent></Card>
+                <Card><CardContent className="pt-4">
+                    <div className="text-xs text-muted-foreground uppercase">Histórico</div>
+                    <div className="text-2xl font-bold mt-1 text-blue-600">{history.length}</div>
+                </CardContent></Card>
+                <Card><CardContent className="pt-4">
+                    <div className="text-xs text-muted-foreground uppercase">Finalizados</div>
+                    <div className="text-2xl font-bold mt-1 text-emerald-600">
+                        {history.filter((r) => r.status === 'finalized').length}
+                    </div>
+                </CardContent></Card>
+                <Card><CardContent className="pt-4">
+                    <div className="text-xs text-muted-foreground uppercase">Páginas geradas</div>
+                    <div className="text-2xl font-bold mt-1 text-purple-600">
+                        {history.reduce((s, r) => s + r.pages, 0).toLocaleString('pt-BR')}
+                    </div>
+                </CardContent></Card>
             </div>
 
             <Card className="border-[#E7E5E2] bg-white">

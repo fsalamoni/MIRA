@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
     Activity, ArrowLeft, Calendar, Clock,
-    TrendingUp,
+    TrendingUp, AlertTriangle, BarChart3, Hash,
 } from 'lucide-react';
 import miraService from '@/services/miraService';
 
@@ -129,6 +129,48 @@ export default function HeatmapAtividade() {
                     Por hora
                 </Button>
             </div>
+
+            {calendarData && (
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                    <Card><CardContent className="pt-4">
+                        <div className="text-xs text-muted-foreground uppercase flex items-center gap-1">
+                            <Activity className="w-3 h-3" /> Total
+                        </div>
+                        <div className="text-2xl font-bold mt-1">{Object.values(calendarData.dailyCounts).reduce((s, d) => s + d.total, 0).toLocaleString('pt-BR')}</div>
+                        <div className="text-xs text-muted-foreground mt-1">em {days} dias</div>
+                    </CardContent></Card>
+                    <Card><CardContent className="pt-4">
+                        <div className="text-xs text-muted-foreground uppercase flex items-center gap-1">
+                            <TrendingUp className="w-3 h-3" /> Pico/dia
+                        </div>
+                        <div className="text-2xl font-bold mt-1 text-emerald-600">{calendarData.maxCount}</div>
+                    </CardContent></Card>
+                    <Card><CardContent className="pt-4">
+                        <div className="text-xs text-muted-foreground uppercase flex items-center gap-1">
+                            <AlertTriangle className="w-3 h-3" /> Flagged
+                        </div>
+                        <div className="text-2xl font-bold mt-1 text-red-600">
+                            {Object.values(calendarData.dailyCounts).reduce((s, d) => s + d.flagged, 0).toLocaleString('pt-BR')}
+                        </div>
+                    </CardContent></Card>
+                    <Card><CardContent className="pt-4">
+                        <div className="text-xs text-muted-foreground uppercase flex items-center gap-1">
+                            <Hash className="w-3 h-3" /> Alto risco
+                        </div>
+                        <div className="text-2xl font-bold mt-1 text-orange-600">
+                            {Object.values(calendarData.dailyCounts).reduce((s, d) => s + d.sanctioned, 0).toLocaleString('pt-BR')}
+                        </div>
+                    </CardContent></Card>
+                    <Card><CardContent className="pt-4">
+                        <div className="text-xs text-muted-foreground uppercase flex items-center gap-1">
+                            <BarChart3 className="w-3 h-3" /> Média/dia
+                        </div>
+                        <div className="text-2xl font-bold mt-1 text-blue-600">
+                            {Math.round(Object.values(calendarData.dailyCounts).reduce((s, d) => s + d.total, 0) / days)}
+                        </div>
+                    </CardContent></Card>
+                </div>
+            )}
 
             {calendarData && view === 'calendar' && (
                 <Card>

@@ -258,6 +258,47 @@ export default function Dashboard() {
                 </Card>
             </div>
 
+            {/* Atividade recente timeline */}
+            <Card className="border-[#E7E5E2] bg-white">
+                <CardHeader>
+                    <CardTitle className="text-[#0B1F3A] flex items-center gap-2">
+                        <Activity className="w-5 h-5 text-emerald-600" />
+                        Atividade recente
+                    </CardTitle>
+                    <CardDescription>Últimas operações realizadas no workspace</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="space-y-3">
+                        {[
+                            { time: '5 min', type: 'case', user: 'Você', action: 'Abriu caso MIRA-2026-0028 — Operação DarkChain', severity: 'info' },
+                            { time: '23 min', type: 'alert', user: 'Sistema', action: '🚨 Alerta crítico: Tornado Cash 0xd9e1...8e8 → Binance 0x28C6...1d60', severity: 'critical' },
+                            { time: '1h', type: 'report', user: 'Você', action: 'Gerou relatório MIRA-REL-2026-0089', severity: 'info' },
+                            { time: '2h', type: 'wallet', user: 'João Silva', action: 'Vinculou wallet 0x47CE...0f0e (Garantex) ao caso MIRA-0025', severity: 'warning' },
+                            { time: '3h', type: 'case', user: 'Maria Costa', action: 'Adicionou evidência ao caso MIRA-2026-0023', severity: 'info' },
+                            { time: '5h', type: 'login', user: 'Sistema', action: 'Login com 2FA (admin@mira.platform)', severity: 'info' },
+                            { time: '6h', type: 'rule', user: 'Carlos Souza', action: 'Criou regra "Cross-chain Bridge Detection" no Rules Engine', severity: 'info' },
+                            { time: '8h', type: 'exp', user: 'Ana Oliveira', action: 'Enviou OF-2026-00123 para Binance Brasil', severity: 'info' },
+                            { time: '1d', type: 'cluster', user: 'Sistema (auto)', action: 'Identificou novo cluster de 3 wallets (multi-input heuristic)', severity: 'info' },
+                            { time: '1d', type: 'alert', user: 'Você', action: 'Resolveu alerta MIRA-ALT-2026-0341', severity: 'info' },
+                            { time: '2d', type: 'case', user: 'Maria Costa', action: 'Fechou caso MIRA-2026-0018 (Pirâmide TokenBR)', severity: 'info' },
+                            { time: '3d', type: 'alert', user: 'João Silva', action: 'Reconheceu 12 alertas em massa', severity: 'info' },
+                        ].map((evt, i) => (
+                            <div key={i} className="flex items-start gap-3 text-sm">
+                                <div className="text-xs text-muted-foreground w-12 flex-shrink-0">{evt.time}</div>
+                                <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${
+                                    evt.severity === 'critical' ? 'bg-red-500' :
+                                        evt.severity === 'warning' ? 'bg-orange-500' : 'bg-blue-500'
+                                }`} />
+                                <div className="flex-1">
+                                    <div className="text-[#0B1F3A]">{evt.action}</div>
+                                    <div className="text-xs text-muted-foreground">por {evt.user}</div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </CardContent>
+            </Card>
+
             {/* Inteligência de Fontes Públicas */}
             {metrics.real_world_stats && (
                 <Card className="border-[#E7E5E2] bg-gradient-to-br from-blue-50 to-white">
