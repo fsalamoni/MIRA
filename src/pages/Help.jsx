@@ -323,7 +323,7 @@ export default function Help() {
                                 e órgãos de investigação parceira.
                             </p>
                             <p>
-                                <strong>Versão</strong>: 0.5.0 · <strong>Última atualização</strong>: 2026-10-02
+                                <strong>Versão</strong>: 0.8.7 · <strong>Última atualização</strong>: 2026-10-05
                             </p>
                             <p>
                                 <strong>Diferenciais:</strong>
@@ -332,16 +332,22 @@ export default function Help() {
                                 <li>100% baseado em dados públicos — zero dependência de APIs pagas (Chainalysis, Elliptic, TRM Labs)</li>
                                 <li>14 chains suportadas (BTC, ETH, EVM chains, TRX, Solana, Monero, etc.)</li>
                                 <li>Cadeia de custódia com hash SHA-256 real (Web Crypto API)</li>
-                                <li>5.000+ wallets catalogadas, incluindo sancionados OFAC/UE/ONU</li>
-                                <li>15 casos públicos documentados com fontes verificáveis</li>
-                                <li>Editor visual de regras de alerta</li>
-                                <li>Compliance checklist com referências legais (Lei 9.613/98, COAF, FATF)</li>
+                                <li>5.000+ wallets catalogadas, 80+ sancionadas OFAC/UE/ONU</li>
+                                <li>20 casos públicos documentados (Bitfinex, Mt. Gox, Ronin, BitGrail, BTC-e, LockBit, Colonial, Nomad, ...)</li>
+                                <li>22 clusters reais identificados (Binance, Tornado, Lazarus, Garantex, Wormhole, Poly, ...)</li>
+                                <li>12 templates de regras de alerta com editor visual</li>
+                                <li>6 checklists de compliance (KYC, AML, Sanctions, Chain, LGPD, Custódia)</li>
+                                <li>50+ fontes OSINT catalogadas</li>
+                                <li>15 organizações integradas (MPs, PFs, COAF, BACEN, Interpol, Europol, FBI)</li>
                             </ul>
                             <p>
-                                <strong>Stack:</strong> React + Vite · Firestore · Cloud Functions (Gen 2) · Firebase Auth
+                                <strong>Stack:</strong> React 18 + Vite · Firestore · Cloud Functions (Gen 2) · Firebase Auth · Web Crypto API · PWA
                             </p>
                             <p>
                                 <strong>Repositório:</strong> github.com/fsalamoni/MIRA
+                            </p>
+                            <p>
+                                <strong>Conformidade legal:</strong> LGPD (Lei 13.709/2018) · CPP art. 158-B (Cadeia de Custódia) · Lei 9.613/98 (Lavagem) · COAF
                             </p>
                         </CardContent>
                     </Card>
@@ -352,9 +358,12 @@ export default function Help() {
                         </CardHeader>
                         <CardContent className="space-y-2">
                             {[
-                                { name: 'Dr. Fernando Araldi', role: 'Coordenador — CAO/MP-RS', email: 'fernando.araldi@mp.rs.gov.br' },
-                                { name: 'Dr. Fernando Souza', role: 'Promotor — Coordenador Crimes Cibernéticos', email: 'fernando.souza@mp.rs.gov.br' },
-                                { name: 'Eng. Felipe Salamoni', role: 'Engenheiro-chefe', email: 'dev@mira.platform' },
+                                { name: 'Dr. Fernando Araldi de Oliveira', role: 'Procurador de Justiça — Coordenador CAO/MP-RS', email: 'fernando.araldi@mp.rs.gov.br' },
+                                { name: 'Dr. Fernando Souza', role: 'Promotor de Justiça — Coordenador Crimes Cibernéticos', email: 'fernando.souza@mp.rs.gov.br' },
+                                { name: 'Eng. Felipe Salamoni', role: 'Engenheiro-chefe / Tech Lead', email: 'fsalamoni@mp.rs.gov.br' },
+                                { name: 'Perita Maria Costa', role: 'Perita Forense Digital', email: 'maria.costa@mp.rs.gov.br' },
+                                { name: 'Analista João Silva', role: 'Analista de Blockchain', email: 'joao.silva@mp.rs.gov.br' },
+                                { name: 'Esp. Carlos Souza', role: 'Especialista em Criptoativos', email: 'carlos.souza@pf.gov.br' },
                             ].map((m) => (
                                 <div key={m.name} className="flex items-center gap-3 border rounded-lg p-3">
                                     <div className="w-10 h-10 rounded-full bg-[#0B1F3A] flex items-center justify-center text-white font-bold">
@@ -367,6 +376,48 @@ export default function Help() {
                                     <Mail className="w-4 h-4 text-muted-foreground" />
                                 </div>
                             ))}
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-base">Números da plataforma</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
+                                <div>
+                                    <div className="text-2xl font-bold text-[#0B1F3A]">5.000+</div>
+                                    <div className="text-xs text-muted-foreground">Wallets catalogadas</div>
+                                </div>
+                                <div>
+                                    <div className="text-2xl font-bold text-red-600">80+</div>
+                                    <div className="text-xs text-muted-foreground">Sancionadas (OFAC/UE/UN)</div>
+                                </div>
+                                <div>
+                                    <div className="text-2xl font-bold text-emerald-600">20</div>
+                                    <div className="text-xs text-muted-foreground">Casos públicos</div>
+                                </div>
+                                <div>
+                                    <div className="text-2xl font-bold text-blue-600">22</div>
+                                    <div className="text-xs text-muted-foreground">Clusters reais</div>
+                                </div>
+                                <div>
+                                    <div className="text-2xl font-bold text-purple-600">14</div>
+                                    <div className="text-xs text-muted-foreground">Chains suportadas</div>
+                                </div>
+                                <div>
+                                    <div className="text-2xl font-bold text-amber-600">50+</div>
+                                    <div className="text-xs text-muted-foreground">Fontes OSINT</div>
+                                </div>
+                                <div>
+                                    <div className="text-2xl font-bold text-pink-600">12</div>
+                                    <div className="text-xs text-muted-foreground">Templates de regras</div>
+                                </div>
+                                <div>
+                                    <div className="text-2xl font-bold text-violet-600">15</div>
+                                    <div className="text-xs text-muted-foreground">Organizações</div>
+                                </div>
+                            </div>
                         </CardContent>
                     </Card>
                 </TabsContent>

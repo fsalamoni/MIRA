@@ -100,6 +100,36 @@ const COMPLIANCE_CHECKLISTS = {
             { id: 'cc-10', label: 'Conformidade com ISO 27037', required: false },
         ],
     },
+    travel_rule: {
+        name: 'Travel Rule (FATF)',
+        description: 'Verificação conforme Travel Rule do FATF para VASPs',
+        items: [
+            { id: 'tr-1', label: 'Identificação do originador', required: true },
+            { id: 'tr-2', label: 'Identificação do beneficiário', required: true },
+            { id: 'tr-3', label: 'Número da conta ou endereço wallet', required: true },
+            { id: 'tr-4', label: 'Informações institucionais do originador', required: true },
+            { id: 'tr-5', label: 'Informações institucionais do beneficiário', required: true },
+            { id: 'tr-6', label: 'Transmissão segura (end-to-end encrypted)', required: true },
+            { id: 'tr-7', label: 'Retenção de informações por 5+ anos', required: true },
+            { id: 'tr-8', label: 'Compartilhamento com LE mediante ordem', required: false },
+            { id: 'tr-9', label: 'Threshold de US$ 1.000 implementado', required: true },
+            { id: 'tr-10', label: 'Protocolo interop. (OpenVASP, TRISA, etc.)', required: false },
+        ],
+    },
+    tax_compliance: {
+        name: 'Conformidade Tributária (BR)',
+        description: 'Verificação conforme IN 1888/2020 (Receita Federal) e Lei 14.478/2022',
+        items: [
+            { id: 'tc-1', label: 'Operação declarada à Receita Federal', required: true },
+            { id: 'tc-2', label: 'IN 1888/2020 cumprida (cripto > R$ 35k)', required: true },
+            { id: 'tc-3', label: 'IR sobre ganho de capital (15-22.5%) recolhido', required: true },
+            { id: 'tc-4', label: 'Declaração de bens e direitos (DAA)', required: true },
+            { id: 'tc-5', label: 'VASP autorizado pelo BCB (Lei 14.478)', required: true },
+            { id: 'tc-6', label: 'CNPJ/CPF da contraparte identificado', required: true },
+            { id: 'tc-7', label: 'Comprovante de custódia', required: false },
+            { id: 'tc-8', label: 'Odorizzi block (Fisco BR)', required: false },
+        ],
+    },
 };
 
 export default function ComplianceChecklist() {

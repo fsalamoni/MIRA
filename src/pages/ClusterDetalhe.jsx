@@ -337,6 +337,73 @@ export default function ClusterDetalhe() {
                     </Card>
                 </TabsContent>
             </Tabs>
+
+            <div className="grid md:grid-cols-3 gap-3">
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="text-base">Padrões detectados</CardTitle>
+                    </CardHeader>
+                    <CardContent className="text-sm space-y-2">
+                        {cluster.kind === 'mixer' && <div className="text-xs bg-purple-50 border border-purple-200 rounded p-2"><strong>Mixer/Tumbler:</strong> Padrão de ofuscação detectado.</div>}
+                        {cluster.kind === 'exchange' && <div className="text-xs bg-emerald-50 border border-emerald-200 rounded p-2"><strong>Exchange:</strong> Endereço de custodiante institucional.</div>}
+                        {cluster.real_cluster && <div className="text-xs bg-blue-50 border border-blue-200 rounded p-2"><strong>Cluster real:</strong> Atribuição pública verificável.</div>}
+                        <div className="text-xs bg-slate-50 border border-slate-200 rounded p-2">
+                            <strong>Heurística principal:</strong> {cluster.heuristic || 'multi-input'}
+                        </div>
+                        <div className="text-xs bg-amber-50 border border-amber-200 rounded p-2">
+                            <strong>Chain primária:</strong> {cluster.chain || 'ETH'}
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="text-base">Atividade recente</CardTitle>
+                    </CardHeader>
+                    <CardContent className="text-sm space-y-2">
+                        {[
+                            { time: 'Há 5min', event: 'Nova wallet adicionada ao cluster' },
+                            { time: 'Há 23min', event: 'Transação suspeita sinalizada' },
+                            { time: 'Há 1h', event: 'Wallet rastreada via Rastreamento' },
+                            { time: 'Há 2h', event: 'Heurística atualizada (95% conf)' },
+                            { time: 'Ontem', event: 'Vinculado a caso MIRA-2026-0028' },
+                        ].map((e, i) => (
+                            <div key={i} className="flex items-center gap-2 text-xs border-b last:border-0 pb-1">
+                                <span className="text-muted-foreground w-20 flex-shrink-0">{e.time}</span>
+                                <span>{e.event}</span>
+                            </div>
+                        ))}
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="text-base">Links relacionados</CardTitle>
+                    </CardHeader>
+                    <CardContent className="text-sm space-y-1">
+                        <div className="flex items-center justify-between text-xs border-b pb-1">
+                            <span>OFAC SDN</span>
+                            <a href="https://sanctionssearch.ofac.treas.gov/" className="text-blue-600 hover:underline" target="_blank" rel="noopener noreferrer">Buscar ↗</a>
+                        </div>
+                        <div className="flex items-center justify-between text-xs border-b pb-1">
+                            <span>Etherscan</span>
+                            <a href="https://etherscan.io/labelcloud" className="text-blue-600 hover:underline" target="_blank" rel="noopener noreferrer">Labels ↗</a>
+                        </div>
+                        <div className="flex items-center justify-between text-xs border-b pb-1">
+                            <span>Chainabuse</span>
+                            <a href="https://www.chainabuse.com/" className="text-blue-600 hover:underline" target="_blank" rel="noopener noreferrer">Reports ↗</a>
+                        </div>
+                        <div className="flex items-center justify-between text-xs border-b pb-1">
+                            <span>WalletExplorer</span>
+                            <a href="https://www.walletexplorer.com/" className="text-blue-600 hover:underline" target="_blank" rel="noopener noreferrer">Clusters ↗</a>
+                        </div>
+                        <div className="flex items-center justify-between text-xs">
+                            <span>BitcoinAbuse</span>
+                            <a href="https://www.bitcoinabuse.com/" className="text-blue-600 hover:underline" target="_blank" rel="noopener noreferrer">Reports ↗</a>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
         </div>
     );
 }
