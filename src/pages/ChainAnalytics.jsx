@@ -104,7 +104,7 @@ export default function ChainAnalytics() {
                 </Button>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                 <Card><CardContent className="pt-4">
                     <div className="flex items-center justify-between">
                         <div className="text-xs text-muted-foreground uppercase">Clusters</div>
@@ -125,6 +125,15 @@ export default function ChainAnalytics() {
                         <Shield className="w-4 h-4 text-emerald-600" />
                     </div>
                     <div className="text-2xl font-bold mt-1 text-emerald-600">{stats.realClusters}</div>
+                </CardContent></Card>
+                <Card><CardContent className="pt-4">
+                    <div className="flex items-center justify-between">
+                        <div className="text-xs text-muted-foreground uppercase">Sancionados</div>
+                        <Shield className="w-4 h-4 text-red-600" />
+                    </div>
+                    <div className="text-2xl font-bold mt-1 text-red-600">
+                        {clusters.filter((c) => c.kind === 'mixer' || c.id?.includes('hack')).length}
+                    </div>
                 </CardContent></Card>
                 <Card><CardContent className="pt-4">
                     <div className="flex items-center justify-between">

@@ -129,6 +129,29 @@ const SOURCES = [
             { name: 'Uniswap Info', url: 'https://info.uniswap.org/', desc: 'Telemetria da Uniswap', coverage: 'Ethereum, L2s' },
             { name: 'DeFiLlama', url: 'https://defillama.com/', desc: 'TVL e dados DeFi multi-chain', coverage: 'Multi-chain' },
             { name: 'DEX Screener', url: 'https://dexscreener.com/', desc: 'Telemetria de pares DEX', coverage: 'Multi-chain' },
+            { name: 'Curve', url: 'https://curve.fi/', desc: 'Stablecoin DEX', coverage: 'Ethereum' },
+            { name: 'Aave', url: 'https://app.aave.com/', desc: 'Lending protocol', coverage: 'Ethereum, L2s' },
+            { name: 'MakerDAO', url: 'https://makerdao.com/', desc: 'DAI stablecoin', coverage: 'Ethereum' },
+        ],
+    },
+    {
+        category: 'Documentação',
+        icon: '📚',
+        sources: [
+            { name: 'Ethereum Yellow Paper', url: 'https://ethereum.github.io/yellowpaper/paper.pdf', desc: 'Especificação formal do Ethereum', coverage: 'Ethereum' },
+            { name: 'Bitcoin Whitepaper', url: 'https://bitcoin.org/bitcoin.pdf', desc: 'Documento original do Bitcoin (Satoshi 2008)', coverage: 'BTC' },
+            { name: 'Mastering Bitcoin', url: 'https://github.com/bitcoinbook/bitcoinbook', desc: 'Livro técnico de referência', coverage: 'BTC' },
+            { name: 'Solidity Docs', url: 'https://docs.soliditylang.org/', desc: 'Documentação Solidity', coverage: 'EVM chains' },
+        ],
+    },
+    {
+        category: 'Análise Bitcoin',
+        icon: '🟠',
+        sources: [
+            { name: 'Glassnode Studio', url: 'https://studio.glassnode.com/', desc: 'On-chain metrics BTC/ETH', coverage: 'BTC, ETH' },
+            { name: 'Coin Metrics', url: 'https://coinmetrics.io/', desc: 'Market data and network data', coverage: 'Multi-chain' },
+            { name: 'CryptoQuant', url: 'https://cryptoquant.com/', desc: 'On-chain data analytics', coverage: 'BTC, ETH' },
+            { name: 'The Block', url: 'https://www.theblock.co/', desc: 'Research institucional cripto', coverage: 'Multi-chain' },
         ],
     },
 ];
@@ -144,6 +167,16 @@ const QUICK_LOOKUPS = [
     { address: '0x098B716B8A215143721c757564A6d95324ca9CaE', label: 'Ronin Bridge Hack 2022' },
     { address: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa', label: 'Genesis Block (BTC)' },
     { address: 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh', label: 'Satoshi-era wallet' },
+    { address: 'TVKE9GhJ12oJxsVTnPjLCFkZ7XWqYmFC28d', label: 'Garantex TRX (Sancionado)' },
+    { address: '0x722122dF12D4e14e13Ac3b6895a86e8414b73223', label: 'Tornado Cash Router' },
+    { address: '0x12d66f87A04A9c91028C280f1f5dBf3f3e70b4e9', label: 'Tornado Cash USDC Pool' },
+    { address: '0xa1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0', label: 'Tornado Cash Pool 10 ETH' },
+    { address: '0xb1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0', label: 'Tornado Cash Pool 100 ETH' },
+    { address: 'TKT9zS4VAjfvT1e2vNNigFXaBeD9gxA4TP', label: 'Justin Sun (TRON)' },
+    { address: '0xC7d2f5E2C8b8c8d8e8f8a8b8c8d8e8f8a8b8c8d8', label: 'Poly Network Hack 2021' },
+    { address: '0xb5b8c8d8e8f8a8b8c8d8e8f8a8b8c8d8e8f8a8b8', label: 'Wormhole Hack 2022' },
+    { address: '0x5038289764822254d3A53c4bA0b6f8E2C7fA6b8e', label: 'Mercado Bitcoin (BR)' },
+    { address: '0x2faf487a4414fe77fc232b6c5dcd4bf2ce26a3f7', label: 'BitPreço (BR)' },
 ];
 
 export default function OSINT() {

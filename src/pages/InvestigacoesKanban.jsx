@@ -161,13 +161,22 @@ export default function InvestigacoesKanban() {
                             onDrop={(e) => handleDrop(e, col.key)}
                         >
                             <div className={`p-3 border-b border-[#E7E5E2] ${color.bg} rounded-t-xl`}>
-                                <div className="flex items-center justify-between">
+                                <div className="flex items-center justify-between mb-2">
                                     <div className="flex items-center gap-2">
                                         <span className="text-base">{col.icon}</span>
                                         <span className={`font-bold text-sm ${color.text}`}>{col.label}</span>
                                     </div>
                                     <Badge className="bg-white text-[#0B1F3A]">{items.length}</Badge>
                                 </div>
+                                {items.length > 0 && (
+                                    <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                                        <span>{items.filter((c) => c.priority === 'urgent').length} urgentes</span>
+                                        <span>·</span>
+                                        <span>{items.filter((c) => c.real_case).length} reais</span>
+                                        <span>·</span>
+                                        <span>{items.filter((c) => c.visibility === 'classified').length} sigilosos</span>
+                                    </div>
+                                )}
                             </div>
                             <div className="p-2 space-y-2 min-h-[200px]">
                                 {items.map((c) => (
