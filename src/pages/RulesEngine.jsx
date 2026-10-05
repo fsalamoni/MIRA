@@ -82,6 +82,69 @@ const RULE_TEMPLATES = [
         actions: ['notify', 'flag'],
         severity: 'high',
     },
+    {
+        id: 'darknet_market',
+        name: 'Conexão com Darknet Market',
+        description: 'Detecta interação com endereços vinculados a darknet markets (Hydra, Empire, AlphaBay)',
+        conditions: [
+            { field: 'tx.to_label', operator: 'in', value: ['Hydra', 'Empire Market', 'AlphaBay', 'White House Market'] },
+        ],
+        actions: ['notify', 'create_case', 'alert_authorities'],
+        severity: 'critical',
+    },
+    {
+        id: 'ransomware_payment',
+        name: 'Pagamento de Ransomware',
+        description: 'Detecta pagamento a endereços vinculados a grupos ransomware (LockBit, Conti, REvil, BlackCat)',
+        conditions: [
+            { field: 'tx.to_label', operator: 'in', value: ['LockBit', 'Conti', 'REvil', 'BlackCat', 'DarkSide', 'Cl0p'] },
+        ],
+        actions: ['notify', 'create_case', 'alert_authorities'],
+        severity: 'critical',
+    },
+    {
+        id: 'lazarus_cluster',
+        name: 'Cluster Lazarus Group',
+        description: 'Detecta interação com cluster identificado como Lazarus Group (DPRK)',
+        conditions: [
+            { field: 'wallet.cluster_id', operator: 'equals', value: 'cluster-lazarus' },
+        ],
+        actions: ['notify', 'block', 'create_case', 'alert_authorities'],
+        severity: 'critical',
+    },
+    {
+        id: 'low_age_high_volume',
+        name: 'Wallet Nova + Alto Volume',
+        description: 'Detecta wallet com menos de 30 dias e mais de 10 transações',
+        conditions: [
+            { field: 'wallet.age_days', operator: 'lt', value: '30' },
+            { field: 'wallet.tx_count_total', operator: 'gt', value: '10' },
+        ],
+        actions: ['notify', 'flag'],
+        severity: 'medium',
+    },
+    {
+        id: 'foreign_exchange_above_threshold',
+        name: 'Exchange Estrangeira Acima de Threshold',
+        description: 'Detecta transação grande em exchange não-regularizada no Brasil',
+        conditions: [
+            { field: 'tx.to_kind', operator: 'equals', value: 'exchange' },
+            { field: 'tx.chain', operator: 'in', value: ['BTC', 'ETH', 'USDT_TRC20', 'USDT_ETH'] },
+        ],
+        actions: ['notify', 'create_case'],
+        severity: 'medium',
+    },
+    {
+        id: 'defi_exploit',
+        name: 'Exploit DeFi Detectado',
+        description: 'Detecta padrão de exploit em contratos DeFi (flash loan + reentrancy)',
+        conditions: [
+            { field: 'tx.method', operator: 'equals', value: 'flashLoan' },
+            { field: 'wallet.tx_count_30d', operator: 'lt', value: '5' },
+        ],
+        actions: ['notify', 'alert_authorities'],
+        severity: 'critical',
+    },
 ];
 
 export default function RulesEngine() {

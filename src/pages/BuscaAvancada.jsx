@@ -405,6 +405,35 @@ export default function BuscaAvancada() {
                     </Tabs>
                 </div>
             </div>
+
+            <Card className="border-[#E7E5E2]">
+                <CardHeader>
+                    <CardTitle className="text-base">Views salvas</CardTitle>
+                    <CardDescription>Reaproveite buscas frequentes com um clique</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        {[
+                            { name: 'Wallets ETH sancionados', filters: { chain: 'ETH', kind: 'all', sanctionedOnly: true }, results: 24, saved_by: 'João Silva' },
+                            { name: 'Mixers em atividade (30d)', filters: { chain: 'all', kind: 'mixer' }, results: 18, saved_by: 'Maria Costa' },
+                            { name: 'Transações flagged BTC', filters: { chain: 'BTC', flaggedOnly: true, minRisk: 60 }, results: 156, saved_by: 'Carlos Souza' },
+                            { name: 'Wallets Tron alto risco', filters: { chain: 'TRX', minRisk: 70 }, results: 42, saved_by: 'Ana Oliveira' },
+                            { name: 'Casos urgentes 2026', filters: { searchType: 'cases', realOnly: true }, results: 23, saved_by: 'Você' },
+                            { name: 'Alertas críticos abertos', filters: { searchType: 'alerts' }, results: 12, saved_by: 'Sistema' },
+                        ].map((v) => (
+                            <div key={v.name} className="border rounded-lg p-3 cursor-pointer hover:border-[#0B1F3A] transition">
+                                <div className="font-medium text-sm text-[#0B1F3A]">{v.name}</div>
+                                <div className="text-xs text-muted-foreground mt-1">
+                                    {v.results} resultados · salvo por {v.saved_by}
+                                </div>
+                                <div className="text-xs text-muted-foreground mt-1 font-mono">
+                                    {JSON.stringify(v.filters).slice(0, 60)}...
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </CardContent>
+            </Card>
         </div>
     );
 }
