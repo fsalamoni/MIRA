@@ -4,6 +4,10 @@ import {
     Play,
     Download,
     Network,
+    TrendingUp,
+    Database,
+    Activity,
+    Hash,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -232,6 +236,9 @@ export default function Rastreamento() {
                                 { addr: '0xd9e1cE17d264a9c3F8d8b8c8d8e8f8a8b8c8d8e8', label: 'Tornado Cash' },
                                 { addr: '0x05FFB2D3BC58B6fEcb6b6bA1fF8F0f5E7bA3a8b2', label: 'Lazarus Group' },
                                 { addr: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045', label: 'Vitalik' },
+                                { addr: '0x098B716B8Aaf21512996dC57EB0615e2383E2f21', label: 'Ronin Hack' },
+                                { addr: '0x47CE0C6eD5B0Ce3d3A51fdb1C5dc9d6f3F2f0f0e', label: 'Garantex' },
+                                { addr: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa', label: 'Genesis Block' },
                             ].map((ex) => (
                                 <button
                                     key={ex.addr}
@@ -246,6 +253,68 @@ export default function Rastreamento() {
                     </div>
                 </CardContent>
             </Card>
+
+            {!graph && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <Card><CardContent className="pt-4">
+                        <div className="text-xs text-muted-foreground uppercase flex items-center gap-1">
+                            <Hash className="w-3 h-3" /> Rastreamentos hoje
+                        </div>
+                        <div className="text-2xl font-bold mt-1">42</div>
+                    </CardContent></Card>
+                    <Card><CardContent className="pt-4">
+                        <div className="text-xs text-muted-foreground uppercase flex items-center gap-1">
+                            <Activity className="w-3 h-3" /> Profundidade média
+                        </div>
+                        <div className="text-2xl font-bold mt-1 text-blue-600">2.8 hops</div>
+                    </CardContent></Card>
+                    <Card><CardContent className="pt-4">
+                        <div className="text-xs text-muted-foreground uppercase flex items-center gap-1">
+                            <TrendingUp className="w-3 h-3" /> Max nodes/grafo
+                        </div>
+                        <div className="text-2xl font-bold mt-1 text-emerald-600">320</div>
+                    </CardContent></Card>
+                    <Card><CardContent className="pt-4">
+                        <div className="text-xs text-muted-foreground uppercase flex items-center gap-1">
+                            <Database className="w-3 h-3" /> Tempo médio
+                        </div>
+                        <div className="text-2xl font-bold mt-1 text-purple-600">1.4s</div>
+                    </CardContent></Card>
+                </div>
+            )}
+
+            {graph && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <Card><CardContent className="pt-4">
+                        <div className="text-xs text-muted-foreground uppercase flex items-center gap-1">
+                            <Network className="w-3 h-3" /> Nodes
+                        </div>
+                        <div className="text-2xl font-bold mt-1 text-blue-600">{graph.metadata.total_nodes}</div>
+                    </CardContent></Card>
+                    <Card><CardContent className="pt-4">
+                        <div className="text-xs text-muted-foreground uppercase flex items-center gap-1">
+                            <Activity className="w-3 h-3" /> Arestas
+                        </div>
+                        <div className="text-2xl font-bold mt-1 text-emerald-600">{graph.metadata.total_edges}</div>
+                    </CardContent></Card>
+                    <Card><CardContent className="pt-4">
+                        <div className="text-xs text-muted-foreground uppercase flex items-center gap-1">
+                            <Hash className="w-3 h-3" /> Profundidade
+                        </div>
+                        <div className="text-2xl font-bold mt-1">{depth} hops</div>
+                    </CardContent></Card>
+                    <Card><CardContent className="pt-4">
+                        <div className="text-xs text-muted-foreground uppercase flex items-center gap-1">
+                            <TrendingUp className="w-3 h-3" /> Densidade
+                        </div>
+                        <div className="text-2xl font-bold mt-1 text-purple-600">
+                            {graph.metadata.total_nodes > 0
+                                ? (graph.metadata.total_edges / graph.metadata.total_nodes).toFixed(2)
+                                : 0}
+                        </div>
+                    </CardContent></Card>
+                </div>
+            )}
 
             <Card className="border-[#E7E5E2] bg-white overflow-hidden">
                 <CardContent className="p-0">

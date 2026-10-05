@@ -5,7 +5,7 @@
 import React, { useState } from 'react';
 import {
     User, Mail, Phone, MapPin, Calendar, Shield, Bell,
-    Briefcase, Activity, Eye, FileText, CheckCircle2, ChevronRight, Settings, Key, Edit, Camera, LogOut,
+    Briefcase, Activity, Eye, FileText, CheckCircle2, ChevronRight, Settings, Key, Edit, Camera,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -324,17 +324,46 @@ export default function Profile() {
                         <CardContent className="space-y-3">
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <div className="font-medium text-sm">Autenticação em 2 fatores</div>
-                                    <div className="text-xs text-muted-foreground">TOTP via app authenticator</div>
+                                    <div className="font-medium text-sm">Autenticação em 2 fatores (TOTP)</div>
+                                    <div className="text-xs text-muted-foreground">App authenticator (Google/Microsoft/Authy)</div>
                                 </div>
                                 <Badge className="bg-emerald-100 text-emerald-800"><CheckCircle2 className="w-3 h-3 mr-1" />Ativo</Badge>
                             </div>
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <div className="font-medium text-sm">Sessão segura</div>
-                                    <div className="text-xs text-muted-foreground">Última: agora</div>
+                                    <div className="font-medium text-sm">Chave de segurança (FIDO2/WebAuthn)</div>
+                                    <div className="text-xs text-muted-foreground">YubiKey 5C — registrado em 15/08/2026</div>
                                 </div>
-                                <Button size="sm" variant="outline"><LogOut className="w-3 h-3 mr-1" /> Encerrar outras</Button>
+                                <Badge className="bg-emerald-100 text-emerald-800"><CheckCircle2 className="w-3 h-3 mr-1" />Ativo</Badge>
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <div className="font-medium text-sm">Backup codes</div>
+                                    <div className="text-xs text-muted-foreground">8 códigos de 10 restantes</div>
+                                </div>
+                                <Button size="sm" variant="outline">Ver códigos</Button>
+                            </div>
+                            <div className="border-t pt-3 mt-3">
+                                <div className="font-medium text-sm mb-2">Sessões ativas (3)</div>
+                                {[
+                                    { device: 'MacBook Pro M3', browser: 'Chrome 128', location: 'Porto Alegre, RS', when: 'agora', current: true },
+                                    { device: 'iPhone 15 Pro', browser: 'Safari', location: 'Porto Alegre, RS', when: '2 horas atrás', current: false },
+                                    { device: 'Linux Workstation', browser: 'Firefox 130', location: 'Brasília, DF', when: 'ontem', current: false },
+                                ].map((s, i) => (
+                                    <div key={i} className="flex items-center justify-between border-b last:border-0 py-2 text-xs">
+                                        <div>
+                                            <div className="font-medium">{s.device} · {s.browser}</div>
+                                            <div className="text-muted-foreground">{s.location} · {s.when}</div>
+                                        </div>
+                                        {s.current ? (
+                                            <Badge variant="outline" className="text-xs">atual</Badge>
+                                        ) : (
+                                            <Button size="sm" variant="ghost" className="text-xs h-6">
+                                                Encerrar
+                                            </Button>
+                                        )}
+                                    </div>
+                                ))}
                             </div>
                         </CardContent>
                     </Card>

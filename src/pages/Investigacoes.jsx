@@ -300,7 +300,7 @@ export default function Investigacoes() {
             )}
 
             {/* Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
                 <Card className="border-[#E7E5E2] bg-white">
                     <CardContent className="p-4">
                         <div className="text-xs text-[#6B6B66] uppercase tracking-wide mb-1 flex items-center gap-1">
@@ -339,6 +339,23 @@ export default function Investigacoes() {
                             <Users className="w-3 h-3" /> Designados
                         </div>
                         <div className="text-2xl font-bold text-emerald-600">{assignees.length}</div>
+                    </CardContent>
+                </Card>
+                <Card className="border-violet-200 bg-violet-50">
+                    <CardContent className="p-4">
+                        <div className="text-xs text-violet-700 uppercase tracking-wide mb-1 flex items-center gap-1">
+                            <TrendingUp className="w-3 h-3" /> SLA médio
+                        </div>
+                        <div className="text-2xl font-bold text-violet-600">
+                            {Math.round(
+                                cases.filter((c) => c.closed_at)
+                                    .reduce((s, c) => {
+                                        const days = (new Date(c.closed_at) - new Date(c.opened_at)) / 86400000;
+                                        return s + days;
+                                    }, 0) /
+                                Math.max(cases.filter((c) => c.closed_at).length, 1)
+                            )}d
+                        </div>
                     </CardContent>
                 </Card>
             </div>
