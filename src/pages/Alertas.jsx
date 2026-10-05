@@ -165,7 +165,7 @@ export default function Alertas() {
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
                 <Card className="border-[#E7E5E2]"><CardContent className="p-4">
                     <div className="text-xs text-[#6B6B66] uppercase tracking-wide flex items-center gap-1">
                         <Bell className="w-3 h-3" /> Total
@@ -195,6 +195,14 @@ export default function Alertas() {
                         <CheckCircle2 className="w-3 h-3" /> Resolvidos
                     </div>
                     <div className="text-2xl font-bold text-emerald-600">{stats.resolved}</div>
+                </CardContent></Card>
+                <Card className="border-violet-200 bg-violet-50"><CardContent className="p-4">
+                    <div className="text-xs text-violet-700 uppercase tracking-wide flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3" /> Taxa resolução
+                    </div>
+                    <div className="text-2xl font-bold text-violet-600">
+                        {stats.total > 0 ? Math.round((stats.resolved / stats.total) * 100) : 0}%
+                    </div>
                 </CardContent></Card>
             </div>
 

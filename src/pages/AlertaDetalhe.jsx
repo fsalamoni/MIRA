@@ -278,6 +278,70 @@ export default function AlertaDetalhe() {
                 </CardContent>
             </Card>
 
+            <div className="grid md:grid-cols-2 gap-3">
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="text-base">Indicadores de comprometimento</CardTitle>
+                        <CardDescription>Sinais detectados que dispararam o alerta</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-2 text-sm">
+                        {[
+                            { signal: 'Interação com endereço sancionado OFAC', severity: 'critical', weight: 50 },
+                            { signal: 'Volume anormal nas últimas 24h', severity: 'high', weight: 25 },
+                            { signal: 'Wallet nova (< 30 dias)', severity: 'medium', weight: 15 },
+                            { signal: 'Padrão de peel chain detectado', severity: 'high', weight: 20 },
+                            { signal: 'Cross-chain bridge incomum', severity: 'medium', weight: 10 },
+                        ].map((s, i) => (
+                            <div key={i} className="flex items-center justify-between border-b last:border-0 pb-1 text-xs">
+                                <div>
+                                    <div className="font-medium">{s.signal}</div>
+                                    <div className="text-muted-foreground">peso: {s.weight}</div>
+                                </div>
+                                <Badge className={
+                                    s.severity === 'critical' ? 'bg-red-100 text-red-800' :
+                                        s.severity === 'high' ? 'bg-orange-100 text-orange-800' :
+                                            'bg-amber-100 text-amber-800'
+                                }>
+                                    {s.severity}
+                                </Badge>
+                            </div>
+                        ))}
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="text-base">Ações recomendadas</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2 text-sm">
+                        {[
+                            { action: 'Notificar investigadores', time: 'imediato', priority: 'urgent' },
+                            { action: 'Bloquear wallet em exchanges reguladas', time: 'imediato', priority: 'urgent' },
+                            { action: 'Solicitar freeze em exchange de destino', time: '24h', priority: 'high' },
+                            { action: 'Criar caso formal', time: '24h', priority: 'high' },
+                            { action: 'Compartilhar com Interpol/Egmont', time: '48h', priority: 'medium' },
+                            { action: 'Adicionar à base de sanções local', time: '7 dias', priority: 'medium' },
+                            { action: 'Auditoria retroativa (últimos 90d)', time: '14 dias', priority: 'low' },
+                        ].map((a, i) => (
+                            <div key={i} className="flex items-center justify-between border-b last:border-0 pb-1 text-xs">
+                                <div>
+                                    <div className="font-medium">{a.action}</div>
+                                    <div className="text-muted-foreground">SLA: {a.time}</div>
+                                </div>
+                                <Badge className={
+                                    a.priority === 'urgent' ? 'bg-red-100 text-red-800' :
+                                        a.priority === 'high' ? 'bg-orange-100 text-orange-800' :
+                                            a.priority === 'medium' ? 'bg-amber-100 text-amber-800' :
+                                                'bg-blue-100 text-blue-800'
+                                }>
+                                    {a.priority}
+                                </Badge>
+                            </div>
+                        ))}
+                    </CardContent>
+                </Card>
+            </div>
+
             <Tabs defaultValue="tx" className="w-full">
                 <TabsList className="grid grid-cols-3 w-full">
                     <TabsTrigger value="tx">Transação</TabsTrigger>
