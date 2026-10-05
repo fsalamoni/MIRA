@@ -332,10 +332,15 @@ export default function NetworkMap() {
                             { name: 'OFAC SDN', entries: '350+', update: 'tempo real' },
                             { name: 'EU Council', entries: '200+', update: 'diário' },
                             { name: 'UN Security', entries: '50+', update: 'por resolução' },
+                            { name: 'UK HMT Sanctions', entries: '180+', update: 'diário' },
                             { name: 'Chainabuse', entries: '85k', update: 'tempo real' },
                             { name: 'BitcoinAbuse', entries: '120k', update: 'tempo real' },
                             { name: 'Etherscan Labels', entries: '250k', update: 'tempo real' },
                             { name: 'WalletExplorer', entries: '180k', update: 'diário' },
+                            { name: 'Blockchair', entries: '450k', update: 'tempo real' },
+                            { name: 'MistTrack (SlowMist)', entries: '90k', update: 'tempo real' },
+                            { name: 'Crystal Block', entries: '60k', update: 'tempo real' },
+                            { name: 'TRM Labs public', entries: '35k', update: 'diário' },
                         ].map((db) => (
                             <div key={db.name} className="flex items-center justify-between text-xs p-2 hover:bg-slate-50 rounded">
                                 <span className="font-medium">{db.name}</span>

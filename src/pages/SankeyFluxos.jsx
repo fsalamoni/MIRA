@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
     ArrowLeft, Eye, Network,
-    RefreshCw, Info,
+    RefreshCw, Info, Database, Activity,
 } from 'lucide-react';
 import miraService from '@/services/miraService';
 
@@ -304,6 +304,45 @@ export default function SankeyFluxos() {
                         />
                     </CardContent>
                 </Card>
+            )}
+
+            {graph && (
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                    <Card><CardContent className="pt-4">
+                        <div className="text-xs text-muted-foreground uppercase flex items-center gap-1">
+                            <Network className="w-3 h-3" /> Camadas
+                        </div>
+                        <div className="text-2xl font-bold mt-1">{depth}</div>
+                    </CardContent></Card>
+                    <Card><CardContent className="pt-4">
+                        <div className="text-xs text-muted-foreground uppercase flex items-center gap-1">
+                            <Activity className="w-3 h-3" /> Flows
+                        </div>
+                        <div className="text-2xl font-bold mt-1 text-blue-600">{graph.edges.length}</div>
+                    </CardContent></Card>
+                    <Card><CardContent className="pt-4">
+                        <div className="text-xs text-muted-foreground uppercase flex items-center gap-1">
+                            <Database className="w-3 h-3" /> Nodes
+                        </div>
+                        <div className="text-2xl font-bold mt-1 text-emerald-600">{graph.nodes.length}</div>
+                    </CardContent></Card>
+                    <Card><CardContent className="pt-4">
+                        <div className="text-xs text-muted-foreground uppercase flex items-center gap-1">
+                            <Eye className="w-3 h-3" /> Bridges
+                        </div>
+                        <div className="text-2xl font-bold mt-1 text-purple-600">
+                            {graph.nodes.filter((n) => n.kind === 'bridge').length}
+                        </div>
+                    </CardContent></Card>
+                    <Card><CardContent className="pt-4">
+                        <div className="text-xs text-muted-foreground uppercase flex items-center gap-1">
+                            <Info className="w-3 h-3" /> Mixers
+                        </div>
+                        <div className="text-2xl font-bold mt-1 text-pink-600">
+                            {graph.nodes.filter((n) => n.kind === 'mixer').length}
+                        </div>
+                    </CardContent></Card>
+                </div>
             )}
 
             {selectedNode && graph && (
